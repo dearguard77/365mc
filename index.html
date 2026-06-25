@@ -58,12 +58,12 @@ body{font-family:-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
 .detail-header{padding:20px 24px;background:linear-gradient(135deg,#FF6B1A,#FF4500);color:#fff;display:flex;align-items:center;justify-content:space-between}
 .detail-name{font-size:20px;font-weight:800}.detail-surgery{font-size:13px;opacity:.85;margin-top:2px}
 .detail-header-actions{display:flex;gap:8px}
-.summary-row{display:grid;grid-template-columns:repeat(5,1fr) 1.2fr;gap:1px;background:var(--border);border-bottom:1px solid var(--border)}
+.summary-row{display:grid;grid-template-columns:repeat(4,1fr) 1.2fr;gap:1px;background:var(--border);border-bottom:1px solid var(--border)}
 .summary-card{background:var(--surface);padding:16px 20px}
 .summary-card.hl{background:var(--highlight-light)}
 .summary-label{font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
 .summary-value{font-size:18px;font-weight:700}
-.summary-value.acc{color:var(--accent)}.summary-value.hlt{color:var(--highlight);font-size:22px}
+.summary-value.acc{color:var(--accent)}.summary-value.hlt{color:var(--highlight);font-size:24px;font-weight:800}
 .summary-meta{font-size:12px;color:var(--text-muted);margin-top:2px}
 .table-wrap{overflow-x:auto}
 table{width:100%;border-collapse:collapse;font-size:13px}
@@ -74,12 +74,14 @@ table tr:hover td{background:var(--bg)}
 .td-date input{width:100px}.td-category input{width:140px}.td-title input{width:220px}input.td-link{width:150px}.td-comments input{width:72px;text-align:right}
 .td-date input,.td-category input,.td-title input,input.td-link,.td-comments input{border:1px solid transparent;border-radius:6px;padding:5px 8px;background:transparent;font-size:13px;font-family:inherit;color:var(--text-primary);transition:all .12s;-webkit-appearance:none;appearance:none;box-shadow:none}
 .td-date input:focus,.td-category input:focus,.td-title input:focus,input.td-link:focus,.td-comments input:focus{outline:none;border-color:var(--accent);background:var(--surface);box-shadow:0 0 0 3px rgba(255,107,26,.18)}
-.td-half{color:var(--text-muted);font-size:12px;text-align:right;min-width:60px}
+.td-half{font-size:13px;text-align:left;min-width:60px}
 .del-btn{padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface-2);cursor:pointer;color:var(--danger);font-size:12px;transition:all .12s}
 .del-btn:hover{background:var(--danger-light);border-color:var(--danger)}
 .add-row-btn{width:100%;padding:10px;background:var(--surface-2);border:none;border-top:1px dashed var(--border-strong);cursor:pointer;color:var(--text-muted);font-size:13px;font-weight:500;transition:all .12s;display:flex;align-items:center;justify-content:center;gap:6px}
 .add-row-btn:hover{background:var(--accent-light);color:var(--accent)}
 .link-a{color:var(--accent);text-decoration:none;font-size:12px;margin-left:4px}
+.half-display{display:inline-block;padding:5px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface-2);min-width:70px;text-align:right;font-size:13px;color:var(--text-primary)}
+.half-readonly{border:1px solid var(--border);border-radius:6px;padding:5px 8px;background:var(--surface-2);font-size:13px;font-family:inherit;color:var(--text-muted);width:72px;text-align:right;cursor:default;pointer-events:none;outline:none}
 .link-a:hover{text-decoration:underline}
 .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;border:1px solid transparent;cursor:pointer;font-size:13px;font-weight:600;font-family:inherit;transition:all .15s}
 .btn-primary{background:var(--accent);color:#fff}.btn-primary:hover{background:var(--accent-dark);box-shadow:0 4px 12px rgba(255,107,26,.35)}
@@ -157,7 +159,14 @@ table tr:hover td{background:var(--bg)}
     gap: 1px;
   }
   .summary-card { padding: 12px 14px; }
-  .summary-card.hl { grid-column: 1 / -1; background: var(--highlight-light); }
+  /* 모바일: 총지급액(.hl)은 단독 칸 — 1/2댓글수 옆에 나란히 */
+  .summary-card.hl {
+    background: var(--highlight-light) !important;
+    grid-column: auto !important;
+    padding: 12px 14px !important;
+  }
+  .summary-card.hl .summary-label { color: var(--highlight); font-weight: 700; }
+  .summary-card.hl .summary-value { color: var(--highlight) !important; font-size: 20px !important; font-weight: 800 !important; }
   .summary-label { font-size: 10px; }
   .summary-value { font-size: 15px; }
   .summary-value.hlt { font-size: 18px; }
@@ -202,7 +211,7 @@ table tr:hover td{background:var(--bg)}
   #actTable tbody td:last-child { order: 7; justify-content: flex-end; }
 
   /* 인풋 크기 */
-  #actTable input, #actTable input[type="text"], #actTable input[type="number"] {
+  #actTable input:not(.half-readonly), #actTable input[type="number"] {
     width: 100% !important;
     font-size: 14px !important;
     padding: 6px 10px !important;
@@ -219,6 +228,33 @@ table tr:hover td{background:var(--bg)}
     box-shadow: 0 0 0 3px rgba(255,107,26,.15) !important;
   }
   .link-a { display: none; }
+  /* 1/2댓글 행 — 읽기전용, 다른 입력행과 동일한 레이아웃 */
+  #actTable .half-readonly {
+    width: 100% !important;
+    font-size: 14px !important;
+    padding: 6px 10px !important;
+    border: 1.5px solid var(--border-strong) !important;
+    border-radius: 8px !important;
+    background: var(--surface-2) !important;
+    color: var(--text-secondary) !important;
+    cursor: default !important;
+    pointer-events: none !important;
+  }
+  /* 1/2댓글 행 — 다른 입력행과 동일한 레이아웃 */
+  #actTable tbody td.td-half {
+    font-size: 13px;
+    color: var(--text-primary);
+  }
+  #actTable tbody td.td-half .half-display {
+    display: inline-block;
+    padding: 6px 10px;
+    border: 1.5px solid var(--border-strong);
+    border-radius: 8px;
+    background: var(--surface-2);
+    min-width: 80px;
+    text-align: right;
+    font-size: 14px;
+  }
 
   /* 전체현황 테이블 — 가로 스크롤 유지하되 최소화 */
   .table-wrap table:not(#actTable) { font-size: 12px; min-width: 480px; }
@@ -322,7 +358,7 @@ table tr:hover td{background:var(--bg)}
           <div class="summary-card"><div class="summary-label">성공기·어플 (×5,000)</div><div class="summary-value acc" id="s-5k-count">0건</div><div class="summary-meta" id="s-5k-fee">₩0</div></div>
           <div class="summary-card"><div class="summary-label">댓글 인센티브</div><div class="summary-value" id="s-incentive">₩0</div><div class="summary-meta" id="s-half">1/2 댓글: 0건</div></div>
           <div class="summary-card"><div class="summary-label">총 댓글수</div><div class="summary-value" id="s-total-comment">0건</div></div>
-          <div class="summary-card"><div class="summary-label">1/2 댓글수</div><div class="summary-value" id="s-half-count">0건</div><div class="summary-meta">기준: 50건 초과</div></div>
+          <div class="summary-card"><div class="summary-label">1/2 댓글수</div><div class="summary-value" id="s-half-count">0건</div><div class="summary-meta">기준 50건 초과시 인센</div></div>
           <div class="summary-card hl"><div class="summary-label">총 지급액</div><div class="summary-value hlt" id="s-total">₩0</div></div>
         </div>
         <div class="table-wrap">
@@ -806,7 +842,7 @@ function renderActTable(sup) {
       <td class="td-title" data-label="제목"><input type="text" value="${esc(r.title||'')}" placeholder="게시글 제목" oninput="upRow(${i},'title',this.value)"></td>
       <td data-label="링크"><input type="text" class="td-link" value="${esc(r.link||'')}" placeholder="https://" oninput="upRow(${i},'link',this.value)">${r.link?`<a class="link-a" href="${esc(r.link)}" target="_blank">↗</a>`:''}</td>
       <td class="td-comments" data-label="댓글수"><input type="number" min="0" step="1" value="${r.comments||''}" placeholder="0" oninput="upRow(${i},'comments',this.value)"></td>
-      <td class="td-half" data-label="1/2댓글">${fmtN(half)}</td>
+      <td class="td-half" data-label="1/2댓글"><input type="text" value="${fmtN(half)}" readonly tabindex="-1" class="half-readonly"></td>
       <td><button class="del-btn" onclick="delRow(${i})">삭제</button></td>
     </tr>`;
   });
@@ -820,8 +856,8 @@ function upRow(i, field, val) {
   if (!sup || !sup.rows[i]) return;
   sup.rows[i][field] = val;
   updateSummary(sup);
-  const halfCell = document.querySelector(`[data-i="${i}"] .td-half`);
-  if (halfCell) halfCell.textContent = fmtN((parseFloat(sup.rows[i].comments)||0)/2);
+  const halfInput = document.querySelector(`[data-i="${i}"] .half-readonly`);
+  if (halfInput) halfInput.value = fmtN((parseFloat(sup.rows[i].comments)||0)/2);
   renderGrid();
   showAutosave();
   // 디바운스: 500ms 후 Supabase 저장
