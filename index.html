@@ -536,6 +536,8 @@ function doLogin() {
   if (pw !== sm.password) { showLoginError('비밀번호가 올바르지 않습니다.'); return; }
   document.getElementById('loginError').style.display='none';
   currentUser = { type:'sm', smId:sm.id, smName:sm.name };
+  // 로그인 상태 저장 (자동 로그인)
+  localStorage.setItem('sm_session', JSON.stringify({ type:'sm', smId:sm.id, smName:sm.name }));
   document.getElementById('userBadgeText').textContent = sm.name+' SM';
   document.getElementById('appHeader').style.display='flex';
   showPage('smPage');
@@ -555,6 +557,7 @@ function doAdminLogin() {
   if (document.getElementById('adminPwInput').value === ADMIN_PASSWORD) {
     closeModal('adminLoginModal');
     currentUser = { type:'admin' };
+    localStorage.setItem('sm_session', JSON.stringify({ type:'admin' }));
     document.getElementById('userBadgeText').textContent='관리자';
     document.getElementById('appHeader').style.display='flex';
     showPage('adminPage');
@@ -566,6 +569,7 @@ function doAdminLogin() {
 }
 function logout() {
   if (!confirm('로그아웃 하시겠습니까?')) return;
+  localStorage.removeItem('sm_session');
   currentUser=null; currentSupId=null;
   showPage('loginPage');
   document.getElementById('appHeader').style.display='none';
@@ -1147,6 +1151,34 @@ document.querySelectorAll('.modal-overlay').forEach(o => {
 // ============================================================
 (async function init() {
   await loadAll();
+
+  // 저장된 로그인 세션 복원 (자동 로그인)
+  try {
+    const saved = localStorage.getItem('sm_session');
+    if (saved) {
+      const session = JSON.parse(saved);
+      if (session.type === 'admin') {
+        currentUser = { type:'admin' };
+        document.getElementById('userBadgeText').textContent = '관리자';
+        document.getElementById('appHeader').style.display = 'flex';
+        showPage('adminPage');
+        renderAdminPage();
+        return;
+      } else if (session.type === 'sm') {
+        // 해당 SM이 아직 존재하는지 확인
+        const sm = db.sms.find(s => s.id === session.smId);
+        if (sm) {
+          currentUser = { type:'sm', smId:sm.id, smName:sm.name };
+          document.getElementById('userBadgeText').textContent = sm.name+' SM';
+          document.getElementById('appHeader').style.display = 'flex';
+          showPage('smPage');
+          renderSMPage();
+          return;
+        }
+      }
+    }
+  } catch(e) {}
+
   renderLoginPage();
 })();
 
