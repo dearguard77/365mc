@@ -206,7 +206,15 @@ table tr:hover td{background:var(--bg)}
   .td-link input, .td-comments input {
     width: 100% !important;
     font-size: 14px;
-    padding: 6px 8px;
+    padding: 6px 10px;
+    border: 1.5px solid var(--border-strong) !important;
+    border-radius: 8px !important;
+    background: var(--surface) !important;
+  }
+  .td-date input:focus, .td-category input:focus, .td-title input:focus,
+  .td-link input:focus, .td-comments input:focus {
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 0 3px rgba(255,107,26,.15) !important;
   }
   .link-a { display: none; }
 
