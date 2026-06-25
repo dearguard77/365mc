@@ -72,8 +72,8 @@ table td{padding:7px 12px;border-bottom:1px solid var(--border);vertical-align:m
 table tr:last-child td{border-bottom:none}
 table tr:hover td{background:var(--bg)}
 .td-date input{width:100px}.td-category input{width:140px}.td-title input{width:220px}.td-link input{width:150px}.td-comments input{width:72px;text-align:right}
-.td-date input,.td-category input,.td-title input,.td-link input,.td-comments input{border:1px solid transparent;border-radius:6px;padding:5px 8px;background:transparent;font-size:13px;font-family:inherit;color:var(--text-primary);transition:all .12s}
-.td-date input:focus,.td-category input:focus,.td-title input:focus,.td-link input:focus,.td-comments input:focus{outline:none;border-color:var(--accent);background:var(--surface);box-shadow:0 0 0 3px rgba(255,107,26,.18)}
+.td-date input,.td-category input,.td-title input,.td-link,.td-comments input{border:1px solid transparent;border-radius:6px;padding:5px 8px;background:transparent;font-size:13px;font-family:inherit;color:var(--text-primary);transition:all .12s;-webkit-appearance:none;appearance:none;box-shadow:none}
+.td-date input:focus,.td-category input:focus,.td-title input:focus,.td-link:focus,.td-comments input:focus{outline:none;border-color:var(--accent);background:var(--surface);box-shadow:0 0 0 3px rgba(255,107,26,.18)}
 .td-half{color:var(--text-muted);font-size:12px;text-align:right;min-width:60px}
 .del-btn{padding:4px 10px;border-radius:6px;border:1px solid var(--border);background:var(--surface-2);cursor:pointer;color:var(--danger);font-size:12px;transition:all .12s}
 .del-btn:hover{background:var(--danger-light);border-color:var(--danger)}
@@ -203,16 +203,19 @@ table tr:hover td{background:var(--bg)}
 
   /* 인풋 크기 */
   .td-date input, .td-category input, .td-title input,
-  .td-link input, .td-comments input {
+  .td-link, .td-comments input {
     width: 100% !important;
     font-size: 14px;
     padding: 6px 10px;
     border: 1.5px solid var(--border-strong) !important;
     border-radius: 8px !important;
     background: var(--surface) !important;
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    box-shadow: none !important;
   }
   .td-date input:focus, .td-category input:focus, .td-title input:focus,
-  .td-link input:focus, .td-comments input:focus {
+  .td-link:focus, .td-comments input:focus {
     border-color: var(--accent) !important;
     box-shadow: 0 0 0 3px rgba(255,107,26,.15) !important;
   }
