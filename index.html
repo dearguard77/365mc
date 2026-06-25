@@ -119,6 +119,126 @@ table tr:hover td{background:var(--bg)}
 .sm-hint-btn{padding:4px 12px;border:1px solid var(--border);border-radius:999px;background:var(--surface-2);cursor:pointer;font-size:12px;color:var(--text-secondary);transition:all .12s}
 .sm-hint-btn:hover{background:var(--accent-light);color:var(--accent);border-color:var(--accent)}
 
+
+/* ===== MOBILE RESPONSIVE ===== */
+@media (max-width: 768px) {
+  /* 헤더 */
+  .app-header { padding: 0 16px; height: 52px; }
+  .app-header img { height: 26px !important; }
+  #headerMonth { display: none; }
+  .user-badge { padding: 5px 10px; font-size: 12px; gap: 4px; }
+
+  /* 메인 콘텐츠 */
+  .main-content { padding: 16px; }
+  .main-nav { padding: 0 16px; }
+  .nav-tab { padding: 12px 14px; font-size: 13px; }
+
+  /* 섹션 헤더 */
+  .section-header { flex-direction: column; gap: 12px; align-items: stretch; }
+  .section-header > div:last-child { display: flex; gap: 8px; }
+  .section-header select, .section-header .btn { flex: 1; }
+
+  /* 서포터 그리드 */
+  .supporter-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .supporter-card { padding: 12px; }
+  .supporter-name { font-size: 14px; }
+  .add-supporter-btn { padding: 12px; }
+
+  /* 서포터 디테일 헤더 */
+  .detail-header { flex-direction: column; gap: 12px; padding: 16px; }
+  .detail-name { font-size: 17px; }
+  .detail-header-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+  .detail-header-actions .btn { flex: 1; justify-content: center; font-size: 12px; padding: 6px 8px; }
+
+  /* 요약 카드 — 모바일: 2열 그리드 */
+  .summary-row {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 1px;
+  }
+  .summary-card { padding: 12px 14px; }
+  .summary-card.hl { grid-column: 1 / -1; }
+  .summary-label { font-size: 10px; }
+  .summary-value { font-size: 15px; }
+  .summary-value.hlt { font-size: 18px; }
+  .summary-meta { font-size: 11px; }
+
+  /* 활동 테이블 — 모바일 카드형 */
+  .table-wrap { overflow-x: hidden; }
+  #actTable thead { display: none; }
+  #actTable tbody tr {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 10px;
+    padding: 10px 12px;
+    background: var(--surface);
+    gap: 6px;
+  }
+  #actTable tbody tr:hover td { background: transparent; }
+  #actTable tbody td {
+    display: flex;
+    align-items: center;
+    padding: 0;
+    border: none;
+    font-size: 13px;
+  }
+  #actTable tbody td::before {
+    content: attr(data-label);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    min-width: 52px;
+    flex-shrink: 0;
+  }
+  /* 날짜+구분 한 줄 */
+  #actTable tbody td.td-date { order: 1; }
+  #actTable tbody td.td-category { order: 2; }
+  #actTable tbody td.td-title { order: 3; }
+  #actTable tbody td:nth-child(4) { order: 4; } /* 링크 */
+  #actTable tbody td.td-comments { order: 5; }
+  #actTable tbody td.td-half { order: 6; }
+  #actTable tbody td:last-child { order: 7; justify-content: flex-end; }
+
+  /* 인풋 크기 */
+  .td-date input, .td-category input, .td-title input,
+  .td-link input, .td-comments input {
+    width: 100% !important;
+    font-size: 14px;
+    padding: 6px 8px;
+  }
+  .link-a { display: none; }
+
+  /* 전체현황 테이블 — 가로 스크롤 유지하되 최소화 */
+  .table-wrap table:not(#actTable) { font-size: 12px; min-width: 480px; }
+
+  /* 관리자 그리드 */
+  #adminTab-manage > div { grid-template-columns: 1fr !important; }
+
+  /* 로그인 카드 */
+  .login-card { padding: 32px 24px; width: 100%; max-width: 100%; margin: 16px; box-sizing: border-box; }
+  .login-wrap { align-items: flex-start; padding-top: 40px; }
+
+  /* 모달 */
+  .modal { width: 95vw; padding: 20px; }
+
+  /* 자동저장 배지 */
+  .autosave-badge { display: none; }
+
+  /* grand total */
+  .grand-total-bar { flex-direction: column; gap: 4px; padding: 16px; text-align: center; }
+  .grand-total-bar div:last-child { font-size: 22px !important; }
+
+  /* admin panel */
+  .admin-panel-header { font-size: 13px; padding: 12px 16px; }
+  .admin-panel-body { padding: 12px 16px; }
+}
+
+@media (max-width: 400px) {
+  .supporter-grid { grid-template-columns: 1fr; }
+}
+
 </style>
 </head>
 <body>
@@ -671,12 +791,12 @@ function renderActTable(sup) {
   rows.forEach((r,i) => {
     const half = (parseFloat(r.comments)||0)/2;
     tbody += `<tr data-i="${i}">
-      <td class="td-date"><input type="text" value="${esc(r.date||'')}" placeholder="예: 6/15" oninput="upRow(${i},'date',this.value)"></td>
-      <td class="td-category"><input type="text" list="catList" value="${esc(r.category||'')}" placeholder="구분 입력" oninput="upRow(${i},'category',this.value)"></td>
-      <td class="td-title"><input type="text" value="${esc(r.title||'')}" placeholder="게시글 제목" oninput="upRow(${i},'title',this.value)"></td>
-      <td><input type="text" class="td-link" value="${esc(r.link||'')}" placeholder="https://" oninput="upRow(${i},'link',this.value)">${r.link?`<a class="link-a" href="${esc(r.link)}" target="_blank">↗</a>`:''}</td>
-      <td class="td-comments"><input type="number" min="0" step="1" value="${r.comments||''}" placeholder="0" oninput="upRow(${i},'comments',this.value)"></td>
-      <td class="td-half">${fmtN(half)}</td>
+      <td class="td-date" data-label="날짜"><input type="text" value="${esc(r.date||'')}" placeholder="예: 6/15" oninput="upRow(${i},'date',this.value)"></td>
+      <td class="td-category" data-label="구분"><input type="text" list="catList" value="${esc(r.category||'')}" placeholder="구분 입력" oninput="upRow(${i},'category',this.value)"></td>
+      <td class="td-title" data-label="제목"><input type="text" value="${esc(r.title||'')}" placeholder="게시글 제목" oninput="upRow(${i},'title',this.value)"></td>
+      <td data-label="링크"><input type="text" class="td-link" value="${esc(r.link||'')}" placeholder="https://" oninput="upRow(${i},'link',this.value)">${r.link?`<a class="link-a" href="${esc(r.link)}" target="_blank">↗</a>`:''}</td>
+      <td class="td-comments" data-label="댓글수"><input type="number" min="0" step="1" value="${r.comments||''}" placeholder="0" oninput="upRow(${i},'comments',this.value)"></td>
+      <td class="td-half" data-label="1/2댓글">${fmtN(half)}</td>
       <td><button class="del-btn" onclick="delRow(${i})">삭제</button></td>
     </tr>`;
   });
