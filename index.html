@@ -257,22 +257,67 @@ table tr:hover td{background:var(--bg)}
   }
 
   /* 전체현황 테이블 — 카드형 */
-  .table-wrap table:not(#actTable) { font-size: 13px; min-width: unset; width: 100%; }
-  /* overview 테이블 헤더 숨기고 카드형으로 */
-  #ovBody tr { display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 10px; padding: 14px; gap: 6px; }
+  #tab-overview .table-wrap { overflow-x: hidden; }
+  #tab-overview .table-wrap table { display: block; width: 100%; }
+  #tab-overview .table-wrap thead { display: none; }
+  #tab-overview .table-wrap tbody { display: flex; flex-direction: column; gap: 10px; }
+  #ovBody tr {
+    display: grid !important;
+    grid-template-columns: 1fr;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    gap: 0;
+  }
   #ovBody tr:hover td { background: transparent; }
-  #ovBody td { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border: none; font-size: 13px; }
-  #ovBody td:first-child { font-size: 15px; font-weight: 700; color: var(--text-primary); border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 4px; }
-  #ovBody td:nth-child(2) { display: none; }
-  #ovBody td::before { content: attr(data-label); font-size: 11px; font-weight: 600; color: var(--text-muted); }
-  #ovBody td:first-child::before { display: none; }
-  #ovBody td:last-child { border-top: 1px solid var(--border); margin-top: 4px; padding-top: 8px; }
-  #ovBody td:last-child::before { content: "총 지급액"; font-size: 12px; font-weight: 700; color: var(--highlight); }
-  /* overview 헤더행 숨기기 */
-  #tab-overview .admin-panel thead { display: none; }
-  /* overview tfoot 카드형 */
-  #tab-overview .admin-panel tfoot tr { display: flex; justify-content: space-between; align-items: center; background: var(--accent-light); border-radius: var(--radius); padding: 14px; margin-top: 4px; }
-  #tab-overview .admin-panel tfoot td { border: none; padding: 0; font-size: 13px; }
+  /* 서포터 이름 */
+  #ovBody td:nth-child(1) {
+    font-size: 16px; font-weight: 700; color: var(--text-primary);
+    border-bottom: 1px solid var(--border);
+    padding: 0 0 10px 0; margin-bottom: 8px;
+    display: block; border-top: none;
+  }
+  /* 수술부위 숨김 */
+  #ovBody td:nth-child(2) { display: none !important; }
+  /* 나머지 항목 */
+  #ovBody td:nth-child(n+3) {
+    display: flex !important;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px 0;
+    border: none;
+    font-size: 13px;
+  }
+  #ovBody td:nth-child(n+3)::before {
+    content: attr(data-label);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+  /* 총 지급액 강조 */
+  #ovBody td:last-child {
+    border-top: 1px solid var(--border) !important;
+    margin-top: 6px; padding-top: 10px !important;
+    font-weight: 700;
+  }
+  #ovBody td:last-child::before { color: var(--highlight) !important; }
+  /* tfoot */
+  #tab-overview .table-wrap tfoot { display: block; }
+  #tab-overview .table-wrap tfoot tr {
+    display: flex !important;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--accent-light);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-top: 4px;
+  }
+  #tab-overview .table-wrap tfoot td { border: none !important; padding: 4px 0 !important; font-size: 13px; }
+  #tab-overview .table-wrap tfoot td:first-child { font-weight: 700; }
+  #tab-overview .table-wrap tfoot td:not(:first-child):not(:last-child) { display: none; }
+  #tab-overview .table-wrap tfoot td:last-child { font-weight: 800; color: var(--highlight); font-size: 16px; }
 
   /* 관리자 그리드 */
   #adminTab-manage > div { grid-template-columns: 1fr !important; }
