@@ -256,8 +256,23 @@ table tr:hover td{background:var(--bg)}
     font-size: 14px;
   }
 
-  /* 전체현황 테이블 — 가로 스크롤 유지하되 최소화 */
-  .table-wrap table:not(#actTable) { font-size: 12px; min-width: 480px; }
+  /* 전체현황 테이블 — 카드형 */
+  .table-wrap table:not(#actTable) { font-size: 13px; min-width: unset; width: 100%; }
+  /* overview 테이블 헤더 숨기고 카드형으로 */
+  #ovBody tr { display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 10px; padding: 14px; gap: 6px; }
+  #ovBody tr:hover td { background: transparent; }
+  #ovBody td { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border: none; font-size: 13px; }
+  #ovBody td:first-child { font-size: 15px; font-weight: 700; color: var(--text-primary); border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 4px; }
+  #ovBody td:nth-child(2) { display: none; }
+  #ovBody td::before { content: attr(data-label); font-size: 11px; font-weight: 600; color: var(--text-muted); }
+  #ovBody td:first-child::before { display: none; }
+  #ovBody td:last-child { border-top: 1px solid var(--border); margin-top: 4px; padding-top: 8px; }
+  #ovBody td:last-child::before { content: "총 지급액"; font-size: 12px; font-weight: 700; color: var(--highlight); }
+  /* overview 헤더행 숨기기 */
+  #tab-overview .admin-panel thead { display: none; }
+  /* overview tfoot 카드형 */
+  #tab-overview .admin-panel tfoot tr { display: flex; justify-content: space-between; align-items: center; background: var(--accent-light); border-radius: var(--radius); padding: 14px; margin-top: 4px; }
+  #tab-overview .admin-panel tfoot td { border: none; padding: 0; font-size: 13px; }
 
   /* 관리자 그리드 */
   #adminTab-manage > div { grid-template-columns: 1fr !important; }
@@ -990,13 +1005,13 @@ function renderOverview() {
     const c=calc(s.rows);
     t10k+=c.fee10k; t5k+=c.fee5k; tH+=c.halfTotal; tI+=c.incentive; tP+=c.total;
     return `<tr>
-      <td style="font-weight:600">${esc(s.name)}</td>
-      <td style="color:var(--text-muted);font-size:12px">${esc(s.surgery||'')}</td>
-      <td style="text-align:right">${fmt(c.fee10k)}</td>
-      <td style="text-align:right">${fmt(c.fee5k)}</td>
-      <td style="text-align:right">${fmtN(c.halfTotal)}</td>
-      <td style="text-align:right">${c.incentive>0?`<span class="tag tag-inc">${fmt(c.incentive)}</span>`:'<span class="tag tag-zero">₩0</span>'}</td>
-      <td style="text-align:right;font-weight:700;color:var(--highlight)">${fmt(c.total)}</td>
+      <td>${esc(s.name)}</td>
+      <td>${esc(s.surgery||'')}</td>
+      <td data-label="블로그·카페" style="text-align:right">${fmt(c.fee10k)}</td>
+      <td data-label="성공기·어플" style="text-align:right">${fmt(c.fee5k)}</td>
+      <td data-label="1/2 댓글수" style="text-align:right">${fmtN(c.halfTotal)}</td>
+      <td data-label="댓글 인센티브" style="text-align:right">${c.incentive>0?`<span class="tag tag-inc">${fmt(c.incentive)}</span>`:'<span class="tag tag-zero">₩0</span>'}</td>
+      <td data-label="총 지급액" style="text-align:right;font-weight:700;color:var(--highlight)">${fmt(c.total)}</td>
     </tr>`;
   }).join('') || '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-muted)">등록된 서포터가 없습니다</td></tr>';
   document.getElementById('ovBody').innerHTML = rows;
