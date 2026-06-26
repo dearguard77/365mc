@@ -147,6 +147,41 @@ td.url{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap
 
 /* Summary row */
 .summary-row td{background:#fafaf8;font-weight:600;font-size:12px}
+
+/* 담당자 그룹 헤더 */
+.manager-group{margin-bottom:16px}
+.manager-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--accent-bg);border:1px solid #bfdbfe;border-radius:8px;cursor:pointer;user-select:none;margin-bottom:0}
+.manager-header:hover{background:#dbeafe}
+.manager-header-left{display:flex;align-items:center;gap:8px;font-weight:600;font-size:14px;color:var(--accent)}
+.manager-header-right{display:flex;align-items:center;gap:12px;font-size:12px;color:var(--text2)}
+.manager-chevron{transition:transform .2s;font-size:12px}
+.manager-chevron.open{transform:rotate(180deg)}
+.manager-body{border:1px solid var(--border);border-top:none;border-radius:0 0 8px 8px;overflow:hidden;display:none}
+.manager-body.open{display:block}
+
+/* 서포터 행 내 채널 드롭다운 */
+.sup-row{cursor:default}
+.sup-row td{vertical-align:middle}
+.sup-row .expand-btn{background:none;border:none;cursor:pointer;color:var(--accent);font-size:12px;padding:2px 6px;border-radius:4px}
+.sup-row .expand-btn:hover{background:var(--accent-bg)}
+.channel-rows{display:none}
+.channel-rows.open{display:table-row-group}
+.channel-group-header td{background:#f8faff;font-size:12px;font-weight:600;color:var(--accent);padding:6px 12px;border-bottom:1px solid var(--border)}
+.channel-post-row td{padding:7px 12px 7px 28px;font-size:12px;border-bottom:1px solid #f0eeea}
+.channel-post-row:last-child td{border-bottom:none}
+.channel-post-row:hover td{background:#fafaf8}
+
+/* 채널 로그인 */
+.login-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.login-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px}
+.login-card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.login-card-title{font-weight:600;font-size:14px}
+.login-status{font-size:11px;padding:2px 8px;border-radius:10px;font-weight:500}
+.login-status.connected{background:var(--green-bg);color:var(--green)}
+.login-status.disconnected{background:#f1efe8;color:var(--text3)}
+.login-fields{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+.login-fields input{padding:7px 10px;border:1px solid var(--border2);border-radius:6px;font-size:13px}
+.login-fields input[type=password]{letter-spacing:2px}
 </style>
 </head>
 <body>
@@ -203,6 +238,10 @@ td.url{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap
     <div class="nav-item" onclick="showSection('channels')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
       채널별 집계
+    </div>
+    <div class="nav-item" onclick="showSection('login')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      채널 로그인 정보
     </div>
     <div class="nav-section" style="margin-top:16px">데이터</div>
     <div class="nav-item" onclick="showSection('input')">
@@ -296,7 +335,7 @@ td.url{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap
       </div>
     </section>
 
-    <!-- ── 게시글 관리 ── -->
+    <!-- ── 게시글 관리 (담당자별 그룹 + 채널 드롭다운) ── -->
     <section class="section" id="sec-posts">
       <div class="page-header">
         <div><div class="page-title">게시글 관리</div></div>
@@ -305,17 +344,17 @@ td.url{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap
         </div>
       </div>
       <div class="filter-bar">
-        <input type="text" id="post-search" placeholder="제목·URL 검색" oninput="filterPosts()" style="width:200px">
-        <select id="post-sup-filter" onchange="filterPosts()">
-          <option value="">전체 서포터</option>
+        <input type="text" id="post-search" placeholder="이름·제목·URL 검색" oninput="renderPostGroups()" style="width:200px">
+        <select id="post-manager-filter" onchange="renderPostGroups()">
+          <option value="">전체 담당자</option>
         </select>
-        <select id="post-channel-filter" onchange="filterPosts()">
+        <select id="post-channel-filter" onchange="renderPostGroups()">
           <option value="">전체 채널</option>
           <option>블로그</option><option>여우야</option><option>성예사</option>
           <option>맘카페</option><option>다이렉트</option><option>어플</option>
           <option>성공기</option><option>유튜브</option><option>인스타</option><option>틱톡</option>
         </select>
-        <select id="post-status-filter" onchange="filterPosts()">
+        <select id="post-status-filter" onchange="renderPostGroups()">
           <option value="">전체 상태</option>
           <option value="정상">정상</option>
           <option value="삭제됨">삭제됨</option>
@@ -323,19 +362,7 @@ td.url{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap
           <option value="오류">오류</option>
         </select>
       </div>
-      <div class="card">
-        <div class="table-wrap">
-          <table>
-            <thead><tr>
-              <th>서포터</th><th>채널</th><th>제목</th><th>URL</th>
-              <th>작성일</th><th>유형</th><th>상태</th><th>관리</th>
-            </tr></thead>
-            <tbody id="post-body">
-              <tr><td colspan="8" class="loading"><div class="spinner"></div>불러오는 중...</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <div id="post-groups-wrap"></div>
     </section>
 
     <!-- ── 주차별 집계 (핵심!) ── -->
@@ -381,6 +408,21 @@ td.url{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap
             </tbody>
           </table>
         </div>
+      </div>
+    </section>
+
+    <!-- ── 채널 로그인 정보 ── -->
+    <section class="section" id="sec-login">
+      <div class="page-header">
+        <div>
+          <div class="page-title">채널 로그인 정보</div>
+          <div class="page-sub">크롤링용 계정 정보를 채널별로 저장합니다 (브라우저 로컬에만 저장)</div>
+        </div>
+        <button class="btn btn-primary" onclick="saveAllLogins()">전체 저장</button>
+      </div>
+      <div class="login-grid" id="login-grid"></div>
+      <div style="margin-top:16px;padding:12px 16px;background:#f1efe8;border-radius:8px;font-size:12px;color:var(--text2)">
+        🔒 비밀번호는 이 브라우저에만 저장되며 서버로 전송되지 않습니다. 나중에 자동 크롤링 기능이 추가되면 이 정보가 사용됩니다.
       </div>
     </section>
 
@@ -600,7 +642,7 @@ async function loadAll() {
   await Promise.all([loadSupporters(), loadPosts(), loadCollections()]);
   renderDashboard();
   renderSupporterTable();
-  renderPostTable();
+  renderPostGroups();
   loadWeeklyTable();
   loadChannelTable();
   loadInputTable();
@@ -779,62 +821,215 @@ function filterSupporters() { renderSupporterTable(); }
 
 function populateSupporterFilters() {
   const opts = `<option value="">전체 서포터</option>` + supporters.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
-  ['post-sup-filter','weekly-sup-filter','input-sup-filter'].forEach(id => {
+  ['weekly-sup-filter','input-sup-filter'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.innerHTML = opts;
   });
   // 게시글 모달 서포터 선택
   const sel = document.getElementById('post-supporter-id');
-  if (sel) sel.innerHTML = supporters.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+  if (sel) sel.innerHTML = supporters.map(s => `<option value="${s.id}">${s.name} (${s.manager || '-'})</option>`).join('');
+
+  // 담당자 필터 목록
+  const managers = [...new Set(supporters.map(s => s.manager).filter(Boolean))].sort();
+  const mgrEl = document.getElementById('post-manager-filter');
+  if (mgrEl) mgrEl.innerHTML = `<option value="">전체 담당자</option>` + managers.map(m => `<option value="${m}">${m}</option>`).join('');
+
+  // 로그인 그리드 초기화
+  renderLoginGrid();
 }
 
 // ─────────────────────────────
-// POSTS TABLE
+// POSTS - 담당자별 그룹 + 채널 드롭다운
 // ─────────────────────────────
-function renderPostTable() {
+function renderPostGroups() {
   const search = (document.getElementById('post-search')?.value || '').toLowerCase();
-  const supF = document.getElementById('post-sup-filter')?.value || '';
-  const chF = document.getElementById('post-channel-filter')?.value || '';
-  const stF = document.getElementById('post-status-filter')?.value || '';
-  const tbody = document.getElementById('post-body');
+  const mgrF  = document.getElementById('post-manager-filter')?.value || '';
+  const chF   = document.getElementById('post-channel-filter')?.value || '';
+  const stF   = document.getElementById('post-status-filter')?.value || '';
+  const wrap  = document.getElementById('post-groups-wrap');
 
-  let rows = posts.filter(p => {
-    const match = !search || p.title?.toLowerCase().includes(search) || p.url?.toLowerCase().includes(search);
-    const sup = !supF || p.supporter_id === supF;
-    const ch = !chF || p.channel === chF;
-    const st = !stF || p.status === stF;
-    return match && sup && ch && st;
+  let filteredPosts = posts.filter(p => {
+    const sup = supporters.find(s => s.id === p.supporter_id);
+    const matchSearch = !search || p.title?.toLowerCase().includes(search)
+      || p.url?.toLowerCase().includes(search)
+      || sup?.name?.toLowerCase().includes(search);
+    const matchMgr = !mgrF || (sup?.manager || '') === mgrF;
+    const matchCh  = !chF  || p.channel === chF;
+    const matchSt  = !stF  || p.status  === stF;
+    return matchSearch && matchMgr && matchCh && matchSt;
   });
 
-  if (rows.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="8" class="empty">게시글이 없습니다</td></tr>';
+  if (filteredPosts.length === 0) {
+    wrap.innerHTML = '<div class="card"><div class="empty">게시글이 없습니다</div></div>';
     return;
   }
 
-  tbody.innerHTML = rows.map(p => {
-    const supName = p.supporters?.name || '-';
-    const statusBadge = {정상:'badge-green',삭제됨:'badge-red',비공개:'badge-amber',오류:'badge-red'}[p.status] || 'badge-gray';
-    const typeBadge = {글:'badge-gray',영상:'badge-blue',릴스:'badge-blue',쇼츠:'badge-blue'}[p.content_type] || 'badge-gray';
-    const postDate = p.post_date ? new Date(p.post_date).toLocaleDateString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit'}) : '-';
-    return `<tr>
-      <td>${supName}</td>
-      <td><span class="badge badge-gray">${p.channel}</span></td>
-      <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.title || '-'}</td>
-      <td class="url"><a href="${p.url}" target="_blank">${p.url}</a></td>
-      <td>${postDate}</td>
-      <td><span class="badge ${typeBadge}">${p.content_type || '글'}</span></td>
-      <td><span class="badge ${statusBadge}">${p.status}</span></td>
-      <td>
-        <div class="btn-group">
-          <button class="btn btn-secondary btn-sm" onclick="editPost('${p.id}')">수정</button>
-          <button class="btn btn-danger btn-sm" onclick="deletePost('${p.id}')">삭제</button>
+  // 담당자별 그룹핑
+  const byManager = {};
+  filteredPosts.forEach(p => {
+    const sup = supporters.find(s => s.id === p.supporter_id);
+    const mgr = sup?.manager || '담당자 미지정';
+    if (!byManager[mgr]) byManager[mgr] = {};
+    const supName = sup?.name || '-';
+    if (!byManager[mgr][supName]) byManager[mgr][supName] = { sup, posts: [] };
+    byManager[mgr][supName].posts.push(p);
+  });
+
+  wrap.innerHTML = Object.entries(byManager).map(([mgr, supMap]) => {
+    const totalPosts = Object.values(supMap).reduce((s, v) => s + v.posts.length, 0);
+    const supCount = Object.keys(supMap).length;
+
+    const supRows = Object.entries(supMap).map(([supName, {sup, posts: supPosts}]) => {
+      // 채널별 그룹핑
+      const byChannel = {};
+      supPosts.forEach(p => {
+        if (!byChannel[p.channel]) byChannel[p.channel] = [];
+        byChannel[p.channel].push(p);
+      });
+
+      const channelHtml = Object.entries(byChannel).map(([ch, chPosts]) => {
+        const postRows = chPosts.map(p => {
+          const statusBadge = {정상:'badge-green',삭제됨:'badge-red',비공개:'badge-amber',오류:'badge-red'}[p.status] || 'badge-gray';
+          const postDate = p.post_date ? new Date(p.post_date).toLocaleDateString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit'}) : '-';
+          const latest = getLatestCollection(p.id);
+          return `<tr class="channel-post-row">
+            <td style="width:180px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.title || '-'}</td>
+            <td><a href="${p.url}" target="_blank" style="color:var(--accent);font-size:11px">🔗 링크</a></td>
+            <td>${postDate}</td>
+            <td class="num" style="color:var(--text3)">${latest ? fmtNum(latest.total_comments) : '-'}</td>
+            <td class="num" style="color:var(--green)">${latest ? fmtNum(latest.weekly_inquiry) : '-'}</td>
+            <td><span class="badge ${statusBadge}">${p.status}</span></td>
+            <td>
+              <div class="btn-group">
+                <button class="btn btn-secondary btn-sm" onclick="editPost('${p.id}')">수정</button>
+                <button class="btn btn-danger btn-sm" onclick="deletePost('${p.id}')">삭제</button>
+              </div>
+            </td>
+          </tr>`;
+        }).join('');
+
+        return `<tr class="channel-group-header">
+            <td colspan="7">📌 ${ch} (${chPosts.length}건)</td>
+          </tr>${postRows}`;
+      }).join('');
+
+      const supId = 'sup-' + (sup?.id || supName).replace(/[^a-z0-9]/gi,'');
+      return `<tr class="sup-row" style="background:#fafaf8">
+          <td colspan="7" style="padding:8px 14px">
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <span style="font-weight:600;font-size:13px">👤 ${supName}
+                <span style="font-size:11px;color:var(--text3);font-weight:400;margin-left:6px">${Object.keys(byChannel).join(' · ')} · ${supPosts.length}건</span>
+              </span>
+              <button class="expand-btn" onclick="toggleSup('${supId}', this)">▾ 펼치기</button>
+            </div>
+          </td>
+        </tr>
+        <tbody class="channel-rows" id="${supId}">
+          <tr><td colspan="7" style="padding:0">
+            <table style="width:100%;border-collapse:collapse">
+              <thead><tr style="background:#f0f4ff">
+                <th style="padding:6px 28px;font-size:11px;width:180px">제목</th>
+                <th style="padding:6px 8px;font-size:11px">URL</th>
+                <th style="padding:6px 8px;font-size:11px">작성일</th>
+                <th style="padding:6px 8px;font-size:11px;text-align:right">누적댓글</th>
+                <th style="padding:6px 8px;font-size:11px;text-align:right">이번주 문의</th>
+                <th style="padding:6px 8px;font-size:11px">상태</th>
+                <th style="padding:6px 8px;font-size:11px">관리</th>
+              </tr></thead>
+              <tbody>${channelHtml}</tbody>
+            </table>
+          </td></tr>
+        </tbody>`;
+    }).join('');
+
+    return `<div class="manager-group">
+      <div class="manager-header" onclick="toggleManager('mgr-${mgr.replace(/[^a-z0-9가-힣]/gi,'')}', this)">
+        <div class="manager-header-left">
+          <span>👩‍💼 ${mgr}</span>
         </div>
-      </td>
-    </tr>`;
+        <div class="manager-header-right">
+          <span>서포터 ${supCount}명</span>
+          <span>게시글 ${totalPosts}건</span>
+          <span class="manager-chevron">▾</span>
+        </div>
+      </div>
+      <div class="manager-body" id="mgr-${mgr.replace(/[^a-z0-9가-힣]/gi,'')}">
+        <table style="width:100%;border-collapse:collapse">
+          <tbody>${supRows}</tbody>
+        </table>
+      </div>
+    </div>`;
   }).join('');
 }
 
-function filterPosts() { renderPostTable(); }
+function toggleManager(id, el) {
+  const body = document.getElementById(id);
+  const chevron = el.querySelector('.manager-chevron');
+  body.classList.toggle('open');
+  chevron.classList.toggle('open');
+}
+
+function toggleSup(id, btn) {
+  const body = document.getElementById(id);
+  body.classList.toggle('open');
+  btn.textContent = body.classList.contains('open') ? '▴ 접기' : '▾ 펼치기';
+}
+
+function filterPosts() { renderPostGroups(); }
+
+// ─────────────────────────────
+// 채널 로그인 정보
+// ─────────────────────────────
+const CHANNELS = ['블로그(네이버)','여우야','성예사','맘카페','다이렉트웨딩','강남언니','바비톡','속닥','유튜브','인스타','틱톡'];
+
+function renderLoginGrid() {
+  const grid = document.getElementById('login-grid');
+  if (!grid) return;
+  grid.innerHTML = CHANNELS.map(ch => {
+    const saved = JSON.parse(localStorage.getItem('login_' + ch) || '{}');
+    const hasLogin = !!(saved.id);
+    return `<div class="login-card">
+      <div class="login-card-header">
+        <div class="login-card-title">${ch}</div>
+        <span class="login-status ${hasLogin ? 'connected' : 'disconnected'}">${hasLogin ? '저장됨' : '미저장'}</span>
+      </div>
+      <div class="login-fields">
+        <input type="text" id="login-id-${ch}" placeholder="아이디" value="${saved.id || ''}">
+        <input type="password" id="login-pw-${ch}" placeholder="비밀번호" value="${saved.pw || ''}">
+      </div>
+      <div class="btn-group">
+        <button class="btn btn-primary btn-sm" onclick="saveLogin('${ch}')">저장</button>
+        <button class="btn btn-danger btn-sm" onclick="clearLogin('${ch}')">삭제</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function saveLogin(ch) {
+  const id = document.getElementById(`login-id-${ch}`)?.value.trim();
+  const pw = document.getElementById(`login-pw-${ch}`)?.value.trim();
+  localStorage.setItem('login_' + ch, JSON.stringify({id, pw}));
+  showToast(`✅ ${ch} 저장 완료`);
+  renderLoginGrid();
+}
+
+function clearLogin(ch) {
+  localStorage.removeItem('login_' + ch);
+  showToast(`${ch} 삭제 완료`);
+  renderLoginGrid();
+}
+
+function saveAllLogins() {
+  CHANNELS.forEach(ch => {
+    const id = document.getElementById(`login-id-${ch}`)?.value.trim();
+    const pw = document.getElementById(`login-pw-${ch}`)?.value.trim();
+    if (id || pw) localStorage.setItem('login_' + ch, JSON.stringify({id, pw}));
+  });
+  showToast('✅ 전체 저장 완료');
+  renderLoginGrid();
+}
+
+
 
 // ─────────────────────────────
 // WEEKLY TABLE (핵심!)
@@ -1158,6 +1353,7 @@ async function saveSupporter() {
   renderSupporterTable();
   populateSupporterFilters();
   renderDashboard();
+  renderPostGroups();
 }
 
 async function deleteSupporter(id) {
@@ -1228,7 +1424,7 @@ async function savePost() {
   showToast('✅ 저장 완료');
   closeModal('post-modal');
   await loadPosts();
-  renderPostTable();
+  renderPostGroups();
   renderDashboard();
   loadInputTable();
 }
@@ -1241,7 +1437,7 @@ async function deletePost(id) {
   showToast('삭제 완료');
   await loadPosts();
   await loadCollections();
-  renderPostTable();
+  renderPostGroups();
   renderDashboard();
   loadWeeklyTable();
 }
@@ -1307,6 +1503,8 @@ function showSection(name) {
   if (name === 'weekly') loadWeeklyTable();
   if (name === 'channels') loadChannelTable();
   if (name === 'input') loadInputTable();
+  if (name === 'posts') renderPostGroups();
+  if (name === 'login') renderLoginGrid();
 }
 
 function closeModal(id) {
