@@ -1,0 +1,1337 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>서포터 후기 반응도 관리</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f5f5f0;--surface:#fff;--border:#e0ded8;--border2:#ccc;
+  --text:#1a1a18;--text2:#5f5e5a;--text3:#9c9a92;
+  --accent:#2563eb;--accent-bg:#eff6ff;
+  --green:#16a34a;--green-bg:#f0fdf4;
+  --red:#dc2626;--red-bg:#fef2f2;
+  --amber:#d97706;--amber-bg:#fffbeb;
+  --radius:8px;--shadow:0 1px 3px rgba(0,0,0,.08);
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5}
+a{color:var(--accent);text-decoration:none}
+
+/* Layout */
+.app{display:flex;min-height:100vh}
+.sidebar{width:220px;min-height:100vh;background:var(--surface);border-right:1px solid var(--border);padding:16px;position:fixed;top:0;left:0}
+.main{margin-left:220px;padding:24px;min-height:100vh}
+
+/* Sidebar */
+.logo{font-size:15px;font-weight:600;color:var(--text);margin-bottom:24px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+.logo span{display:block;font-size:11px;font-weight:400;color:var(--text3);margin-top:2px}
+.nav-section{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin:16px 0 6px}
+.nav-item{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:6px;cursor:pointer;color:var(--text2);transition:all .15s;margin-bottom:2px;font-size:13px}
+.nav-item:hover{background:var(--bg);color:var(--text)}
+.nav-item.active{background:var(--accent-bg);color:var(--accent);font-weight:500}
+.nav-item svg{width:15px;height:15px;flex-shrink:0}
+
+/* Header */
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+.page-title{font-size:20px;font-weight:600}
+.page-sub{font-size:13px;color:var(--text3);margin-top:2px}
+
+/* Cards */
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:24px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px}
+.stat-label{font-size:12px;color:var(--text3);margin-bottom:4px}
+.stat-value{font-size:22px;font-weight:600;color:var(--text)}
+.stat-sub{font-size:11px;color:var(--text3);margin-top:2px}
+.stat-card.accent{border-color:#bfdbfe;background:var(--accent-bg)}
+.stat-card.accent .stat-value{color:var(--accent)}
+.stat-card.green{border-color:#bbf7d0;background:var(--green-bg)}
+.stat-card.green .stat-value{color:var(--green)}
+
+/* Table */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.card-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border)}
+.card-title{font-size:14px;font-weight:600}
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse}
+th{background:#fafaf8;text-align:left;padding:9px 12px;font-size:12px;font-weight:600;color:var(--text2);border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:9px 12px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:#fafaf8}
+td.num{text-align:right;font-variant-numeric:tabular-nums}
+td.url{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* Badges */
+.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500}
+.badge-green{background:var(--green-bg);color:var(--green)}
+.badge-red{background:var(--red-bg);color:var(--red)}
+.badge-amber{background:var(--amber-bg);color:var(--amber)}
+.badge-gray{background:#f1efe8;color:var(--text2)}
+.badge-blue{background:var(--accent-bg);color:var(--accent)}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:var(--radius);font-size:13px;font-weight:500;cursor:pointer;border:none;transition:all .15s}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:#1d4ed8}
+.btn-secondary{background:var(--surface);color:var(--text);border:1px solid var(--border2)}
+.btn-secondary:hover{background:var(--bg)}
+.btn-danger{background:var(--red-bg);color:var(--red);border:1px solid #fecaca}
+.btn-danger:hover{background:#fee2e2}
+.btn-sm{padding:4px 10px;font-size:12px}
+.btn-group{display:flex;gap:8px;flex-wrap:wrap}
+
+/* Forms */
+.form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.form-row{display:flex;gap:12px;flex-wrap:wrap}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:12px;font-weight:500;color:var(--text2)}
+.field input,.field select,.field textarea{padding:7px 10px;border:1px solid var(--border2);border-radius:6px;font-size:13px;color:var(--text);background:var(--surface);outline:none;transition:border .15s}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent)}
+.field textarea{resize:vertical;min-height:60px}
+.field-full{grid-column:1/-1}
+
+/* Modal */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:100;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border-radius:12px;padding:24px;width:90%;max-width:560px;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.15)}
+.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.modal-title{font-size:16px;font-weight:600}
+.modal-close{background:none;border:none;cursor:pointer;font-size:20px;color:var(--text3);line-height:1}
+.modal-footer{display:flex;justify-content:flex-end;gap:8px;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)}
+
+/* Weekly table special */
+.week-table th.week-col{background:#eff6ff;color:var(--accent)}
+.week-table td.week-data{background:#fafbff}
+.inc-positive{color:var(--green);font-weight:500}
+.inc-negative{color:var(--red)}
+.inc-zero{color:var(--text3)}
+
+/* Setup screen */
+.setup-box{max-width:480px;margin:80px auto;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:32px}
+.setup-box h2{font-size:18px;font-weight:600;margin-bottom:8px}
+.setup-box p{color:var(--text2);font-size:13px;margin-bottom:24px;line-height:1.6}
+
+/* Tabs */
+.tab-bar{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:20px}
+.tab{padding:8px 16px;font-size:13px;font-weight:500;cursor:pointer;color:var(--text2);border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .15s}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.tab-content{display:none}
+.tab-content.active{display:block}
+
+/* Filter bar */
+.filter-bar{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center}
+.filter-bar input,.filter-bar select{padding:6px 10px;border:1px solid var(--border2);border-radius:6px;font-size:13px;background:var(--surface)}
+
+/* Inline number input for weekly entry */
+.num-input{width:70px;padding:4px 6px;border:1px solid var(--border2);border-radius:4px;font-size:12px;text-align:right}
+.num-input:focus{outline:none;border-color:var(--accent)}
+
+/* Toast */
+.toast{position:fixed;bottom:24px;right:24px;background:#1a1a18;color:#fff;padding:10px 18px;border-radius:8px;font-size:13px;z-index:999;opacity:0;transform:translateY(8px);transition:all .25s;pointer-events:none}
+.toast.show{opacity:1;transform:translateY(0)}
+
+/* Loading */
+.loading{display:flex;align-items:center;gap:8px;color:var(--text3);padding:40px;justify-content:center}
+.spinner{width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Empty state */
+.empty{text-align:center;padding:48px;color:var(--text3)}
+.empty svg{width:40px;height:40px;margin:0 auto 12px;display:block;opacity:.3}
+
+/* Page sections */
+.section{display:none}
+.section.active{display:block}
+
+/* Summary row */
+.summary-row td{background:#fafaf8;font-weight:600;font-size:12px}
+</style>
+</head>
+<body>
+
+<!-- Setup overlay (Supabase 설정 전) -->
+<div id="setup-screen" style="display:none">
+  <div class="setup-box">
+    <h2>🔧 초기 설정</h2>
+    <p>Supabase 프로젝트 정보를 입력해주세요.<br>한 번만 설정하면 브라우저에 저장됩니다.</p>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div class="field">
+        <label>Supabase URL</label>
+        <input id="setup-url" type="text" placeholder="https://xxxx.supabase.co">
+      </div>
+      <div class="field">
+        <label>Supabase Anon Key</label>
+        <input id="setup-key" type="text" placeholder="eyJh...">
+      </div>
+    </div>
+    <div style="margin-top:20px;display:flex;gap:8px">
+      <button class="btn btn-primary" onclick="saveSetup()">저장 및 시작</button>
+    </div>
+    <p style="margin-top:16px;font-size:11px;color:var(--text3)">
+      Supabase → Settings → API 에서 확인 가능합니다.
+    </p>
+  </div>
+</div>
+
+<!-- Main App -->
+<div class="app" id="app-screen" style="display:none">
+
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="logo">
+      서포터 반응도<span>대전 365mc</span>
+    </div>
+    <div class="nav-section">메뉴</div>
+    <div class="nav-item active" onclick="showSection('dashboard')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      대시보드
+    </div>
+    <div class="nav-item" onclick="showSection('supporters')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      서포터 관리
+    </div>
+    <div class="nav-item" onclick="showSection('posts')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+      게시글 관리
+    </div>
+    <div class="nav-item" onclick="showSection('weekly')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      주차별 집계
+    </div>
+    <div class="nav-item" onclick="showSection('channels')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      채널별 집계
+    </div>
+    <div class="nav-section" style="margin-top:16px">데이터</div>
+    <div class="nav-item" onclick="showSection('input')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      주차 입력
+    </div>
+    <div class="nav-item" onclick="exportExcel()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      엑셀 내보내기
+    </div>
+    <div style="margin-top:auto;padding-top:24px;border-top:1px solid var(--border);margin-top:32px">
+      <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Supabase 연결됨</div>
+      <button class="btn btn-secondary btn-sm" onclick="resetSetup()" style="width:100%">설정 초기화</button>
+    </div>
+  </nav>
+
+  <!-- Main content -->
+  <main class="main">
+
+    <!-- ── 대시보드 ── -->
+    <section class="section active" id="sec-dashboard">
+      <div class="page-header">
+        <div>
+          <div class="page-title">대시보드</div>
+          <div class="page-sub" id="dash-week-label">이번 주 현황</div>
+        </div>
+        <div class="btn-group">
+          <button class="btn btn-secondary" onclick="loadAll()">새로고침</button>
+        </div>
+      </div>
+      <div class="stat-grid" id="dash-stats">
+        <div class="stat-card"><div class="stat-label">전체 서포터</div><div class="stat-value" id="stat-supporters">-</div></div>
+        <div class="stat-card"><div class="stat-label">전체 게시글</div><div class="stat-value" id="stat-posts">-</div></div>
+        <div class="stat-card accent"><div class="stat-label">전체 누적 댓글</div><div class="stat-value" id="stat-total-comments">-</div></div>
+        <div class="stat-card green"><div class="stat-label">전체 누적 문의댓글</div><div class="stat-value" id="stat-total-inquiry">-</div></div>
+        <div class="stat-card accent"><div class="stat-label">이번 주 증가 댓글</div><div class="stat-value" id="stat-week-inc">-</div></div>
+        <div class="stat-card green"><div class="stat-label">이번 주 문의댓글</div><div class="stat-value" id="stat-week-inquiry">-</div></div>
+        <div class="stat-card"><div class="stat-label">전체 누적 조회수</div><div class="stat-value" id="stat-views">-</div></div>
+        <div class="stat-card"><div class="stat-label">오류 링크</div><div class="stat-value" id="stat-errors">-</div></div>
+      </div>
+
+      <!-- 서포터별 이번 주 요약 -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">서포터별 이번 주 요약</div>
+        </div>
+        <div class="table-wrap">
+          <table id="dash-supporter-table">
+            <thead><tr>
+              <th>서포터</th><th>담당자</th><th>게시글</th>
+              <th>누적 조회수</th><th>누적 댓글</th><th>누적 문의댓글</th>
+              <th>이번 주 증가</th><th>이번 주 문의댓글</th><th>상태</th>
+            </tr></thead>
+            <tbody id="dash-supporter-body">
+              <tr><td colspan="9" class="loading"><div class="spinner"></div>불러오는 중...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── 서포터 관리 ── -->
+    <section class="section" id="sec-supporters">
+      <div class="page-header">
+        <div><div class="page-title">서포터 관리</div></div>
+        <div class="btn-group">
+          <button class="btn btn-primary" onclick="openSupporterModal()">+ 서포터 추가</button>
+        </div>
+      </div>
+      <div class="filter-bar">
+        <input type="text" id="sup-search" placeholder="이름·담당자 검색" oninput="filterSupporters()" style="width:200px">
+        <select id="sup-status-filter" onchange="filterSupporters()">
+          <option value="">전체 상태</option>
+          <option value="진행중">진행중</option>
+          <option value="종료">종료</option>
+          <option value="보류">보류</option>
+        </select>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>서포터명</th><th>담당자</th><th>차트번호</th><th>시술부위</th>
+              <th>계약종료</th><th>게시글 수</th><th>상태</th><th>비고</th><th>관리</th>
+            </tr></thead>
+            <tbody id="supporter-body">
+              <tr><td colspan="9" class="loading"><div class="spinner"></div>불러오는 중...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── 게시글 관리 ── -->
+    <section class="section" id="sec-posts">
+      <div class="page-header">
+        <div><div class="page-title">게시글 관리</div></div>
+        <div class="btn-group">
+          <button class="btn btn-primary" onclick="openPostModal()">+ 게시글 추가</button>
+        </div>
+      </div>
+      <div class="filter-bar">
+        <input type="text" id="post-search" placeholder="제목·URL 검색" oninput="filterPosts()" style="width:200px">
+        <select id="post-sup-filter" onchange="filterPosts()">
+          <option value="">전체 서포터</option>
+        </select>
+        <select id="post-channel-filter" onchange="filterPosts()">
+          <option value="">전체 채널</option>
+          <option>블로그</option><option>여우야</option><option>성예사</option>
+          <option>맘카페</option><option>다이렉트</option><option>어플</option>
+          <option>성공기</option><option>유튜브</option><option>인스타</option><option>틱톡</option>
+        </select>
+        <select id="post-status-filter" onchange="filterPosts()">
+          <option value="">전체 상태</option>
+          <option value="정상">정상</option>
+          <option value="삭제됨">삭제됨</option>
+          <option value="비공개">비공개</option>
+          <option value="오류">오류</option>
+        </select>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>서포터</th><th>채널</th><th>제목</th><th>URL</th>
+              <th>작성일</th><th>유형</th><th>상태</th><th>관리</th>
+            </tr></thead>
+            <tbody id="post-body">
+              <tr><td colspan="8" class="loading"><div class="spinner"></div>불러오는 중...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── 주차별 집계 (핵심!) ── -->
+    <section class="section" id="sec-weekly">
+      <div class="page-header">
+        <div><div class="page-title">주차별 집계</div></div>
+        <div class="btn-group">
+          <button class="btn btn-secondary" onclick="exportExcel()">엑셀 내보내기</button>
+        </div>
+      </div>
+      <div class="filter-bar">
+        <select id="weekly-sup-filter" onchange="loadWeeklyTable()">
+          <option value="">전체 서포터</option>
+        </select>
+        <select id="weekly-channel-filter" onchange="loadWeeklyTable()">
+          <option value="">전체 채널</option>
+          <option>블로그</option><option>여우야</option><option>성예사</option>
+          <option>맘카페</option><option>다이렉트</option><option>어플</option><option>성공기</option>
+        </select>
+      </div>
+      <div class="card">
+        <div class="table-wrap" id="weekly-table-wrap">
+          <div class="loading"><div class="spinner"></div>불러오는 중...</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── 채널별 집계 ── -->
+    <section class="section" id="sec-channels">
+      <div class="page-header">
+        <div><div class="page-title">채널별 집계</div></div>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>채널</th><th>게시글 수</th><th>누적 조회수</th>
+              <th>누적 댓글</th><th>누적 문의댓글</th>
+              <th>이번 주 증가</th><th>이번 주 문의댓글</th>
+            </tr></thead>
+            <tbody id="channel-body">
+              <tr><td colspan="7" class="loading"><div class="spinner"></div>불러오는 중...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── 주차 입력 ── -->
+    <section class="section" id="sec-input">
+      <div class="page-header">
+        <div>
+          <div class="page-title">주차 데이터 입력</div>
+          <div class="page-sub">각 게시글의 현재 댓글 수와 조회수를 입력하세요</div>
+        </div>
+        <div class="btn-group">
+          <div class="field" style="flex-direction:row;align-items:center;gap:8px">
+            <label style="font-size:13px;color:var(--text2);white-space:nowrap">입력 주차:</label>
+            <input type="text" id="input-week-label" placeholder="예: 6월3주" style="width:90px;padding:7px 10px;border:1px solid var(--border2);border-radius:6px;font-size:13px">
+          </div>
+          <button class="btn btn-primary" onclick="saveWeeklyData()">전체 저장</button>
+        </div>
+      </div>
+      <div class="filter-bar">
+        <select id="input-sup-filter" onchange="loadInputTable()">
+          <option value="">전체 서포터</option>
+        </select>
+        <select id="input-channel-filter" onchange="loadInputTable()">
+          <option value="">전체 채널</option>
+          <option>블로그</option><option>여우야</option><option>성예사</option>
+          <option>맘카페</option><option>다이렉트</option><option>어플</option><option>성공기</option>
+        </select>
+      </div>
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>서포터</th><th>채널</th><th>제목</th><th>URL</th>
+              <th>직전 댓글</th>
+              <th style="background:#eff6ff;color:var(--accent)">현재 댓글 수 ✏️</th>
+              <th style="background:#eff6ff;color:var(--accent)">현재 조회수 ✏️</th>
+              <th>증가</th><th>문의댓글</th>
+            </tr></thead>
+            <tbody id="input-body">
+              <tr><td colspan="9" class="loading"><div class="spinner"></div>불러오는 중...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div style="margin-top:12px;padding:12px 16px;background:var(--amber-bg);border:1px solid #fde68a;border-radius:8px;font-size:12px;color:var(--amber)">
+        💡 <strong>입력 방법:</strong> 각 게시글의 현재 누적 댓글 수와 조회수를 직접 입력 → 저장 주차 입력 → 전체 저장. 증가량·문의댓글은 자동 계산됩니다.
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ── Modals ── -->
+
+<!-- 서포터 추가/수정 -->
+<div class="modal-overlay" id="supporter-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="supporter-modal-title">서포터 추가</div>
+      <button class="modal-close" onclick="closeModal('supporter-modal')">×</button>
+    </div>
+    <div class="form-grid">
+      <div class="field">
+        <label>서포터명 *</label>
+        <input id="sup-name" type="text" placeholder="김혜빈">
+      </div>
+      <div class="field">
+        <label>담당자</label>
+        <input id="sup-manager" type="text" placeholder="담당자명">
+      </div>
+      <div class="field">
+        <label>차트번호</label>
+        <input id="sup-chart" type="text" placeholder="40348">
+      </div>
+      <div class="field">
+        <label>계약종료일</label>
+        <input id="sup-end" type="date">
+      </div>
+      <div class="field field-full">
+        <label>시술부위</label>
+        <input id="sup-procedure" type="text" placeholder="팔 무한람스+뒷볼록 / 231만원">
+      </div>
+      <div class="field">
+        <label>상태</label>
+        <select id="sup-status">
+          <option>진행중</option><option>종료</option><option>보류</option>
+        </select>
+      </div>
+      <div class="field field-full">
+        <label>비고</label>
+        <textarea id="sup-memo" placeholder="메모"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('supporter-modal')">취소</button>
+      <button class="btn btn-primary" onclick="saveSupporter()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 게시글 추가/수정 -->
+<div class="modal-overlay" id="post-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="post-modal-title">게시글 추가</div>
+      <button class="modal-close" onclick="closeModal('post-modal')">×</button>
+    </div>
+    <div class="form-grid">
+      <div class="field">
+        <label>서포터 *</label>
+        <select id="post-supporter-id"></select>
+      </div>
+      <div class="field">
+        <label>채널 *</label>
+        <select id="post-channel">
+          <option>블로그</option><option>여우야</option><option>성예사</option>
+          <option>맘카페</option><option>다이렉트</option><option>어플</option>
+          <option>성공기</option><option>유튜브</option><option>인스타</option><option>틱톡</option>
+        </select>
+      </div>
+      <div class="field field-full">
+        <label>제목</label>
+        <input id="post-title" type="text" placeholder="게시글 제목">
+      </div>
+      <div class="field field-full">
+        <label>URL *</label>
+        <input id="post-url" type="url" placeholder="https://...">
+      </div>
+      <div class="field">
+        <label>작성일</label>
+        <input id="post-date" type="date">
+      </div>
+      <div class="field">
+        <label>후기 유형</label>
+        <select id="post-type">
+          <option>글</option><option>영상</option><option>릴스</option><option>쇼츠</option><option>기타</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>상태</label>
+        <select id="post-status">
+          <option>정상</option><option>삭제됨</option><option>비공개</option><option>오류</option>
+        </select>
+      </div>
+      <div class="field field-full">
+        <label>비고</label>
+        <textarea id="post-memo" placeholder="메모"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('post-modal')">취소</button>
+      <button class="btn btn-primary" onclick="savePost()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ─────────────────────────────
+// CONFIG & INIT
+// ─────────────────────────────
+let supabase = null;
+let supporters = [];
+let posts = [];
+let collections = [];
+let editingSupporterId = null;
+let editingPostId = null;
+let inputRows = []; // 주차 입력용 임시 데이터
+
+const SB_URL = 'https://njuxwkciufrrgxrrhavy.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5qdXh3a2NpdWZycmd4cnJoYXZ5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI0NTY1NDYsImV4cCI6MjA5ODAzMjU0Nn0.PBDMakSjRsntimh0wVBblfRGBQlOOH_OmV6YvcyZHtk';
+
+function init() {
+  const { createClient } = supabaseJs;
+  supabase = createClient(SB_URL, SB_KEY);
+  document.getElementById('setup-screen').style.display = 'none';
+  document.getElementById('app-screen').style.display = 'flex';
+  setupDB().then(() => loadAll());
+}
+
+function saveSetup() {
+  const url = document.getElementById('setup-url').value.trim();
+  const key = document.getElementById('setup-key').value.trim();
+  if (!url || !key) { showToast('URL과 Key를 모두 입력해주세요'); return; }
+  localStorage.setItem('sb_url', url);
+  localStorage.setItem('sb_key', key);
+  init();
+}
+
+function resetSetup() {
+  if (!confirm('설정을 초기화할까요?')) return;
+  localStorage.removeItem('sb_url');
+  localStorage.removeItem('sb_key');
+  location.reload();
+}
+
+// ─────────────────────────────
+// DB 테이블 자동 생성
+// ─────────────────────────────
+async function setupDB() {
+  // Supabase에서 테이블이 없으면 SQL로 생성 (RPC 또는 직접)
+  // 실제로는 Supabase 대시보드에서 아래 SQL 실행 필요
+  // 여기서는 테이블 존재 여부만 체크
+  try {
+    await supabase.from('supporters').select('id').limit(1);
+  } catch(e) {
+    showToast('⚠️ 테이블 설정이 필요합니다. Supabase에서 SQL을 실행해주세요.', 5000);
+  }
+}
+
+// ─────────────────────────────
+// DATA LOAD
+// ─────────────────────────────
+async function loadAll() {
+  await Promise.all([loadSupporters(), loadPosts(), loadCollections()]);
+  renderDashboard();
+  renderSupporterTable();
+  renderPostTable();
+  loadWeeklyTable();
+  loadChannelTable();
+  loadInputTable();
+  populateSupporterFilters();
+}
+
+async function loadSupporters() {
+  const { data, error } = await supabase.from('supporters').select('*').order('name');
+  if (!error) supporters = data || [];
+}
+
+async function loadPosts() {
+  const { data, error } = await supabase.from('posts')
+    .select('*, supporters(name, manager)')
+    .eq('status', '정상')
+    .order('created_at');
+  if (!error) posts = data || [];
+}
+
+async function loadCollections() {
+  const { data, error } = await supabase.from('collections')
+    .select('*')
+    .order('collected_at', { ascending: false });
+  if (!error) collections = data || [];
+}
+
+// ─────────────────────────────
+// 계산 유틸
+// ─────────────────────────────
+function getWeekLabel(date) {
+  const d = date || new Date();
+  const month = d.getMonth() + 1;
+  const week = Math.ceil(d.getDate() / 7);
+  return `${month}월${week}주`;
+}
+
+// 게시글별 최신 수집값
+function getLatestCollection(postId) {
+  return collections.find(c => c.post_id === postId) || null;
+}
+
+// 게시글별 특정 주차 수집값
+function getCollectionByWeek(postId, weekLabel) {
+  return collections.find(c => c.post_id === postId && c.week_label === weekLabel) || null;
+}
+
+// 게시글에 등장한 모든 주차 (정렬)
+function getAllWeeks() {
+  const weeks = [...new Set(collections.map(c => c.week_label))];
+  return weeks.sort((a, b) => {
+    const parse = w => {
+      const m = parseInt(w); const wk = parseInt(w.replace(/^\d+월/, ''));
+      return m * 10 + wk;
+    };
+    return parse(a) - parse(b);
+  });
+}
+
+function fmtNum(n) {
+  if (n == null) return '-';
+  return Number(n).toLocaleString();
+}
+
+function incClass(n) {
+  if (n == null || n === 0) return 'inc-zero';
+  return n > 0 ? 'inc-positive' : 'inc-negative';
+}
+
+// ─────────────────────────────
+// DASHBOARD
+// ─────────────────────────────
+function renderDashboard() {
+  const weekLabel = getWeekLabel();
+  document.getElementById('dash-week-label').textContent = `현재 주차: ${weekLabel}`;
+
+  // 최신 수집값 기준 집계
+  const latestByPost = {};
+  posts.forEach(p => {
+    const col = getLatestCollection(p.id);
+    if (col) latestByPost[p.id] = col;
+  });
+
+  const totalComments = Object.values(latestByPost).reduce((s, c) => s + (c.total_comments || 0), 0);
+  const totalViews = Object.values(latestByPost).reduce((s, c) => s + (c.view_count || 0), 0);
+  const weekInc = Object.values(latestByPost).reduce((s, c) => s + (c.increased_comments || 0), 0);
+  const errorCount = posts.filter(p => p.status === '오류').length;
+
+  document.getElementById('stat-supporters').textContent = supporters.filter(s => s.status === '진행중').length;
+  document.getElementById('stat-posts').textContent = posts.length;
+  document.getElementById('stat-total-comments').textContent = fmtNum(totalComments);
+  document.getElementById('stat-total-inquiry').textContent = fmtNum(totalComments / 2);
+  document.getElementById('stat-week-inc').textContent = fmtNum(weekInc);
+  document.getElementById('stat-week-inquiry').textContent = fmtNum(weekInc / 2);
+  document.getElementById('stat-views').textContent = fmtNum(totalViews);
+  document.getElementById('stat-errors').textContent = errorCount;
+
+  // 서포터별 요약
+  const tbody = document.getElementById('dash-supporter-body');
+  if (supporters.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9" class="empty">서포터 데이터가 없습니다</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = supporters.filter(s => s.status === '진행중').map(sup => {
+    const supPosts = posts.filter(p => p.supporter_id === sup.id);
+    const supCols = supPosts.map(p => getLatestCollection(p.id)).filter(Boolean);
+    const totalC = supCols.reduce((s, c) => s + (c.total_comments || 0), 0);
+    const totalV = supCols.reduce((s, c) => s + (c.view_count || 0), 0);
+    const weekI = supCols.reduce((s, c) => s + (c.increased_comments || 0), 0);
+
+    const statusBadge = {
+      '진행중': 'badge-green', '종료': 'badge-gray', '보류': 'badge-amber'
+    }[sup.status] || 'badge-gray';
+
+    return `<tr>
+      <td><strong>${sup.name}</strong></td>
+      <td>${sup.manager || '-'}</td>
+      <td class="num">${supPosts.length}</td>
+      <td class="num">${fmtNum(totalV)}</td>
+      <td class="num">${fmtNum(totalC)}</td>
+      <td class="num">${fmtNum(totalC / 2)}</td>
+      <td class="num ${incClass(weekI)}">${weekI > 0 ? '+' : ''}${fmtNum(weekI)}</td>
+      <td class="num ${incClass(weekI / 2)}">${weekI > 0 ? '+' : ''}${fmtNum(weekI / 2)}</td>
+      <td><span class="badge ${statusBadge}">${sup.status}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ─────────────────────────────
+// SUPPORTERS TABLE
+// ─────────────────────────────
+function renderSupporterTable(filter = '') {
+  const search = (document.getElementById('sup-search')?.value || '').toLowerCase();
+  const statusF = document.getElementById('sup-status-filter')?.value || '';
+  const tbody = document.getElementById('supporter-body');
+
+  let rows = supporters.filter(s => {
+    const match = !search || s.name?.toLowerCase().includes(search) || s.manager?.toLowerCase().includes(search);
+    const st = !statusF || s.status === statusF;
+    return match && st;
+  });
+
+  if (rows.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9" class="empty">서포터가 없습니다</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = rows.map(sup => {
+    const postCount = posts.filter(p => p.supporter_id === sup.id).length;
+    const endDate = sup.contract_end_date ? new Date(sup.contract_end_date) : null;
+    const endStr = endDate ? endDate.toLocaleDateString('ko-KR', {year:'2-digit',month:'2-digit',day:'2-digit'}) : '-';
+    const isExpiring = endDate && (endDate - new Date()) < 7 * 24 * 3600 * 1000;
+    const statusBadge = {
+      '진행중': 'badge-green', '종료': 'badge-gray', '보류': 'badge-amber'
+    }[sup.status] || 'badge-gray';
+    return `<tr>
+      <td><strong>${sup.name}</strong></td>
+      <td>${sup.manager || '-'}</td>
+      <td>${sup.chart_no || '-'}</td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${sup.procedure_area || '-'}</td>
+      <td style="${isExpiring ? 'color:var(--red);font-weight:500' : ''}">${endStr}</td>
+      <td class="num">${postCount}</td>
+      <td><span class="badge ${statusBadge}">${sup.status}</span></td>
+      <td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text3)">${sup.memo || ''}</td>
+      <td>
+        <div class="btn-group">
+          <button class="btn btn-secondary btn-sm" onclick="editSupporter('${sup.id}')">수정</button>
+          <button class="btn btn-danger btn-sm" onclick="deleteSupporter('${sup.id}')">삭제</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function filterSupporters() { renderSupporterTable(); }
+
+function populateSupporterFilters() {
+  const opts = `<option value="">전체 서포터</option>` + supporters.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+  ['post-sup-filter','weekly-sup-filter','input-sup-filter'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = opts;
+  });
+  // 게시글 모달 서포터 선택
+  const sel = document.getElementById('post-supporter-id');
+  if (sel) sel.innerHTML = supporters.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+}
+
+// ─────────────────────────────
+// POSTS TABLE
+// ─────────────────────────────
+function renderPostTable() {
+  const search = (document.getElementById('post-search')?.value || '').toLowerCase();
+  const supF = document.getElementById('post-sup-filter')?.value || '';
+  const chF = document.getElementById('post-channel-filter')?.value || '';
+  const stF = document.getElementById('post-status-filter')?.value || '';
+  const tbody = document.getElementById('post-body');
+
+  let rows = posts.filter(p => {
+    const match = !search || p.title?.toLowerCase().includes(search) || p.url?.toLowerCase().includes(search);
+    const sup = !supF || p.supporter_id === supF;
+    const ch = !chF || p.channel === chF;
+    const st = !stF || p.status === stF;
+    return match && sup && ch && st;
+  });
+
+  if (rows.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" class="empty">게시글이 없습니다</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = rows.map(p => {
+    const supName = p.supporters?.name || '-';
+    const statusBadge = {정상:'badge-green',삭제됨:'badge-red',비공개:'badge-amber',오류:'badge-red'}[p.status] || 'badge-gray';
+    const typeBadge = {글:'badge-gray',영상:'badge-blue',릴스:'badge-blue',쇼츠:'badge-blue'}[p.content_type] || 'badge-gray';
+    const postDate = p.post_date ? new Date(p.post_date).toLocaleDateString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit'}) : '-';
+    return `<tr>
+      <td>${supName}</td>
+      <td><span class="badge badge-gray">${p.channel}</span></td>
+      <td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.title || '-'}</td>
+      <td class="url"><a href="${p.url}" target="_blank">${p.url}</a></td>
+      <td>${postDate}</td>
+      <td><span class="badge ${typeBadge}">${p.content_type || '글'}</span></td>
+      <td><span class="badge ${statusBadge}">${p.status}</span></td>
+      <td>
+        <div class="btn-group">
+          <button class="btn btn-secondary btn-sm" onclick="editPost('${p.id}')">수정</button>
+          <button class="btn btn-danger btn-sm" onclick="deletePost('${p.id}')">삭제</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function filterPosts() { renderPostTable(); }
+
+// ─────────────────────────────
+// WEEKLY TABLE (핵심!)
+// ─────────────────────────────
+function loadWeeklyTable() {
+  const supF = document.getElementById('weekly-sup-filter')?.value || '';
+  const chF = document.getElementById('weekly-channel-filter')?.value || '';
+  const wrap = document.getElementById('weekly-table-wrap');
+
+  let filteredPosts = posts.filter(p => {
+    const sup = !supF || p.supporter_id === supF;
+    const ch = !chF || p.channel === chF;
+    return sup && ch;
+  });
+
+  const weeks = getAllWeeks();
+
+  if (filteredPosts.length === 0 || weeks.length === 0) {
+    wrap.innerHTML = '<div class="empty">데이터가 없습니다. 주차 입력 탭에서 데이터를 입력해주세요.</div>';
+    return;
+  }
+
+  // 주차별 헤더 생성 (첫 주는 누적만, 이후 주는 누적+증가+문의)
+  let headerCols = weeks.map((w, i) => {
+    if (i === 0) return `<th class="week-col">${w}<br><small>누적댓글</small></th>`;
+    return `<th class="week-col">${w}<br><small>누적</small></th>
+            <th class="week-col" style="background:#f0fdf4;color:var(--green)">${w}<br><small>+증가</small></th>
+            <th class="week-col" style="background:#f0fdf4;color:var(--green)">${w}<br><small>문의</small></th>`;
+  }).join('');
+
+  let html = `<table class="week-table"><thead><tr>
+    <th>서포터</th><th>채널</th><th>제목</th><th>URL</th><th>작성일</th>
+    <th>누적 조회수</th>
+    ${headerCols}
+  </tr></thead><tbody>`;
+
+  // 서포터별로 그룹핑
+  const supGroups = {};
+  filteredPosts.forEach(p => {
+    const key = p.supporter_id;
+    if (!supGroups[key]) supGroups[key] = { name: p.supporters?.name, posts: [] };
+    supGroups[key].posts.push(p);
+  });
+
+  Object.values(supGroups).forEach(group => {
+    const supTotals = {}; // 주차별 합계
+    weeks.forEach(w => supTotals[w] = { total: 0, inc: 0, inquiry: 0 });
+
+    group.posts.forEach(p => {
+      const postDate = p.post_date ? new Date(p.post_date).toLocaleDateString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit'}) : '-';
+      const latestCol = getLatestCollection(p.id);
+      const latestViews = latestCol?.view_count ?? '-';
+
+      let dataCols = weeks.map((w, i) => {
+        const col = getCollectionByWeek(p.id, w);
+        const total = col?.total_comments ?? null;
+        const inc = col?.increased_comments ?? null;
+        const inq = col?.weekly_inquiry ?? null;
+
+        if (total != null) supTotals[w].total += total;
+        if (inc != null && i > 0) supTotals[w].inc += inc;
+        if (inq != null && i > 0) supTotals[w].inquiry += inq;
+
+        if (i === 0) return `<td class="num week-data">${total != null ? fmtNum(total) : '-'}</td>`;
+        return `<td class="num week-data">${total != null ? fmtNum(total) : '-'}</td>
+                <td class="num week-data ${incClass(inc)}">${inc != null ? (inc > 0 ? '+' : '') + fmtNum(inc) : '-'}</td>
+                <td class="num week-data" style="color:var(--green)">${inq != null ? fmtNum(inq) : '-'}</td>`;
+      }).join('');
+
+      html += `<tr>
+        <td>${group.name}</td>
+        <td><span class="badge badge-gray">${p.channel}</span></td>
+        <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px">${p.title || '-'}</td>
+        <td><a href="${p.url}" target="_blank" style="font-size:11px;color:var(--accent)">링크</a></td>
+        <td style="font-size:12px">${postDate}</td>
+        <td class="num">${fmtNum(latestViews)}</td>
+        ${dataCols}
+      </tr>`;
+    });
+
+    // 서포터 합계 행
+    let sumCols = weeks.map((w, i) => {
+      if (i === 0) return `<td class="num" style="font-weight:600">${fmtNum(supTotals[w].total)}</td>`;
+      return `<td class="num" style="font-weight:600">${fmtNum(supTotals[w].total)}</td>
+              <td class="num ${incClass(supTotals[w].inc)}" style="font-weight:600">${supTotals[w].inc > 0 ? '+' : ''}${fmtNum(supTotals[w].inc)}</td>
+              <td class="num" style="font-weight:600;color:var(--green)">${fmtNum(supTotals[w].inquiry)}</td>`;
+    }).join('');
+
+    html += `<tr class="summary-row">
+      <td colspan="5">📊 ${group.name} 합계</td>
+      <td class="num">-</td>
+      ${sumCols}
+    </tr>`;
+  });
+
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+}
+
+// ─────────────────────────────
+// CHANNEL TABLE
+// ─────────────────────────────
+function loadChannelTable() {
+  const channels = [...new Set(posts.map(p => p.channel))].sort();
+  const weeks = getAllWeeks();
+  const lastWeek = weeks[weeks.length - 1];
+  const tbody = document.getElementById('channel-body');
+
+  if (channels.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty">데이터가 없습니다</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = channels.map(ch => {
+    const chPosts = posts.filter(p => p.channel === ch);
+    const chCols = chPosts.map(p => getLatestCollection(p.id)).filter(Boolean);
+    const totalC = chCols.reduce((s, c) => s + (c.total_comments || 0), 0);
+    const totalV = chCols.reduce((s, c) => s + (c.view_count || 0), 0);
+    const weekInc = chCols.reduce((s, c) => s + (c.increased_comments || 0), 0);
+
+    return `<tr>
+      <td><span class="badge badge-gray">${ch}</span></td>
+      <td class="num">${chPosts.length}</td>
+      <td class="num">${fmtNum(totalV)}</td>
+      <td class="num">${fmtNum(totalC)}</td>
+      <td class="num">${fmtNum(totalC / 2)}</td>
+      <td class="num ${incClass(weekInc)}">${weekInc > 0 ? '+' : ''}${fmtNum(weekInc)}</td>
+      <td class="num" style="color:var(--green)">${fmtNum(weekInc / 2)}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ─────────────────────────────
+// INPUT TABLE (주차 데이터 입력)
+// ─────────────────────────────
+function loadInputTable() {
+  const supF = document.getElementById('input-sup-filter')?.value || '';
+  const chF = document.getElementById('input-channel-filter')?.value || '';
+  const tbody = document.getElementById('input-body');
+
+  // 이번 주차 라벨 자동 설정
+  const weekInput = document.getElementById('input-week-label');
+  if (!weekInput.value) weekInput.value = getWeekLabel();
+
+  let filteredPosts = posts.filter(p => {
+    const sup = !supF || p.supporter_id === supF;
+    const ch = !chF || p.channel === chF;
+    return sup && ch;
+  });
+
+  if (filteredPosts.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9" class="empty">게시글이 없습니다. 먼저 게시글을 등록하세요.</td></tr>';
+    return;
+  }
+
+  // 입력용 임시 저장 객체 초기화
+  inputRows = {};
+  filteredPosts.forEach(p => {
+    const latest = getLatestCollection(p.id);
+    inputRows[p.id] = {
+      comments: latest?.total_comments ?? '',
+      views: latest?.view_count ?? '',
+      prevComments: latest?.total_comments ?? 0
+    };
+  });
+
+  tbody.innerHTML = filteredPosts.map(p => {
+    const supName = p.supporters?.name || '-';
+    const postDate = p.post_date ? new Date(p.post_date).toLocaleDateString('ko-KR',{year:'2-digit',month:'2-digit',day:'2-digit'}) : '-';
+    const latest = getLatestCollection(p.id);
+    const prevComments = latest?.total_comments ?? '-';
+
+    return `<tr id="input-row-${p.id}">
+      <td>${supName}</td>
+      <td><span class="badge badge-gray">${p.channel}</span></td>
+      <td style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px">${p.title || '-'}</td>
+      <td><a href="${p.url}" target="_blank" style="font-size:11px">링크</a></td>
+      <td class="num" style="color:var(--text3)">${fmtNum(prevComments)}</td>
+      <td>
+        <input class="num-input" type="number" id="input-c-${p.id}" 
+               value="" placeholder="댓글수"
+               oninput="updateInputCalc('${p.id}', ${prevComments === '-' ? 0 : prevComments})">
+      </td>
+      <td>
+        <input class="num-input" type="number" id="input-v-${p.id}" 
+               value="" placeholder="조회수">
+      </td>
+      <td class="num" id="input-inc-${p.id}" style="color:var(--text3)">-</td>
+      <td class="num" id="input-inq-${p.id}" style="color:var(--green)">-</td>
+    </tr>`;
+  }).join('');
+}
+
+function updateInputCalc(postId, prevComments) {
+  const cInput = document.getElementById(`input-c-${postId}`);
+  const incEl = document.getElementById(`input-inc-${postId}`);
+  const inqEl = document.getElementById(`input-inq-${postId}`);
+  const current = parseInt(cInput.value) || 0;
+  const prev = parseInt(prevComments) || 0;
+  const inc = Math.max(0, current - prev);
+  incEl.textContent = inc > 0 ? `+${fmtNum(inc)}` : fmtNum(inc);
+  incEl.className = `num ${incClass(inc)}`;
+  inqEl.textContent = fmtNum(inc / 2);
+}
+
+// ─────────────────────────────
+// SAVE WEEKLY DATA
+// ─────────────────────────────
+async function saveWeeklyData() {
+  const weekLabel = document.getElementById('input-week-label').value.trim();
+  if (!weekLabel) { showToast('주차를 입력해주세요 (예: 6월3주)'); return; }
+
+  const supF = document.getElementById('input-sup-filter')?.value || '';
+  const chF = document.getElementById('input-channel-filter')?.value || '';
+  let filteredPosts = posts.filter(p => {
+    const sup = !supF || p.supporter_id === supF;
+    const ch = !chF || p.channel === chF;
+    return sup && ch;
+  });
+
+  const rows = [];
+  filteredPosts.forEach(p => {
+    const cVal = document.getElementById(`input-c-${p.id}`)?.value;
+    const vVal = document.getElementById(`input-v-${p.id}`)?.value;
+    if (cVal === '' && vVal === '') return; // 입력 없으면 스킵
+
+    const totalComments = parseInt(cVal) || 0;
+    const viewCount = parseInt(vVal) || 0;
+    const latest = getLatestCollection(p.id);
+    const prevComments = latest?.total_comments || 0;
+    const increased = Math.max(0, totalComments - prevComments);
+
+    rows.push({
+      post_id: p.id,
+      week_label: weekLabel,
+      year_week: weekLabel,
+      collected_at: new Date().toISOString(),
+      view_count: viewCount,
+      total_comments: totalComments,
+      prev_comments: prevComments,
+      increased_comments: increased,
+      accumulated_inquiry: totalComments / 2,  // 절대 변경 금지
+      weekly_inquiry: increased / 2,            // 절대 변경 금지
+      collect_status: '성공'
+    });
+  });
+
+  if (rows.length === 0) {
+    showToast('입력된 데이터가 없습니다');
+    return;
+  }
+
+  // upsert (같은 post_id + week_label 이면 업데이트)
+  const { error } = await supabase.from('collections').upsert(rows, {
+    onConflict: 'post_id,week_label'
+  });
+
+  if (error) {
+    showToast('저장 실패: ' + error.message);
+    return;
+  }
+
+  showToast(`✅ ${rows.length}개 저장 완료! (${weekLabel})`);
+  await loadCollections();
+  renderDashboard();
+  loadWeeklyTable();
+  loadChannelTable();
+  loadInputTable();
+}
+
+// ─────────────────────────────
+// SUPPORTER CRUD
+// ─────────────────────────────
+function openSupporterModal(id = null) {
+  editingSupporterId = id;
+  document.getElementById('supporter-modal-title').textContent = id ? '서포터 수정' : '서포터 추가';
+  if (id) {
+    const s = supporters.find(x => x.id === id);
+    if (!s) return;
+    document.getElementById('sup-name').value = s.name || '';
+    document.getElementById('sup-manager').value = s.manager || '';
+    document.getElementById('sup-chart').value = s.chart_no || '';
+    document.getElementById('sup-end').value = s.contract_end_date || '';
+    document.getElementById('sup-procedure').value = s.procedure_area || '';
+    document.getElementById('sup-status').value = s.status || '진행중';
+    document.getElementById('sup-memo').value = s.memo || '';
+  } else {
+    ['sup-name','sup-manager','sup-chart','sup-end','sup-procedure','sup-memo'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('sup-status').value = '진행중';
+  }
+  document.getElementById('supporter-modal').classList.add('open');
+}
+
+function editSupporter(id) { openSupporterModal(id); }
+
+async function saveSupporter() {
+  const name = document.getElementById('sup-name').value.trim();
+  if (!name) { showToast('서포터명을 입력해주세요'); return; }
+
+  const data = {
+    name,
+    manager: document.getElementById('sup-manager').value.trim(),
+    chart_no: document.getElementById('sup-chart').value.trim(),
+    contract_end_date: document.getElementById('sup-end').value || null,
+    procedure_area: document.getElementById('sup-procedure').value.trim(),
+    status: document.getElementById('sup-status').value,
+    memo: document.getElementById('sup-memo').value.trim()
+  };
+
+  let error;
+  if (editingSupporterId) {
+    ({ error } = await supabase.from('supporters').update(data).eq('id', editingSupporterId));
+  } else {
+    ({ error } = await supabase.from('supporters').insert(data));
+  }
+
+  if (error) { showToast('저장 실패: ' + error.message); return; }
+  showToast('✅ 저장 완료');
+  closeModal('supporter-modal');
+  await loadSupporters();
+  renderSupporterTable();
+  populateSupporterFilters();
+  renderDashboard();
+}
+
+async function deleteSupporter(id) {
+  const s = supporters.find(x => x.id === id);
+  if (!confirm(`"${s?.name}" 서포터를 삭제할까요? 관련 게시글과 수집 데이터도 모두 삭제됩니다.`)) return;
+  await supabase.from('collections').delete().in('post_id', posts.filter(p => p.supporter_id === id).map(p => p.id));
+  await supabase.from('posts').delete().eq('supporter_id', id);
+  await supabase.from('supporters').delete().eq('id', id);
+  showToast('삭제 완료');
+  await loadAll();
+}
+
+// ─────────────────────────────
+// POST CRUD
+// ─────────────────────────────
+function openPostModal(id = null) {
+  editingPostId = id;
+  document.getElementById('post-modal-title').textContent = id ? '게시글 수정' : '게시글 추가';
+  populateSupporterFilters();
+  if (id) {
+    const p = posts.find(x => x.id === id);
+    if (!p) return;
+    document.getElementById('post-supporter-id').value = p.supporter_id || '';
+    document.getElementById('post-channel').value = p.channel || '블로그';
+    document.getElementById('post-title').value = p.title || '';
+    document.getElementById('post-url').value = p.url || '';
+    document.getElementById('post-date').value = p.post_date || '';
+    document.getElementById('post-type').value = p.content_type || '글';
+    document.getElementById('post-status').value = p.status || '정상';
+    document.getElementById('post-memo').value = p.memo || '';
+  } else {
+    ['post-title','post-url','post-date','post-memo'].forEach(i => document.getElementById(i).value = '');
+    document.getElementById('post-type').value = '글';
+    document.getElementById('post-status').value = '정상';
+  }
+  document.getElementById('post-modal').classList.add('open');
+}
+
+function editPost(id) { openPostModal(id); }
+
+async function savePost() {
+  const url = document.getElementById('post-url').value.trim();
+  const supId = document.getElementById('post-supporter-id').value;
+  if (!url) { showToast('URL을 입력해주세요'); return; }
+  if (!supId) { showToast('서포터를 선택해주세요'); return; }
+
+  const sup = supporters.find(s => s.id === supId);
+  const data = {
+    supporter_id: supId,
+    manager: sup?.manager || '',
+    channel: document.getElementById('post-channel').value,
+    title: document.getElementById('post-title').value.trim(),
+    url,
+    post_date: document.getElementById('post-date').value || null,
+    content_type: document.getElementById('post-type').value,
+    status: document.getElementById('post-status').value,
+    memo: document.getElementById('post-memo').value.trim()
+  };
+
+  let error;
+  if (editingPostId) {
+    ({ error } = await supabase.from('posts').update(data).eq('id', editingPostId));
+  } else {
+    ({ error } = await supabase.from('posts').insert(data));
+  }
+
+  if (error) { showToast('저장 실패: ' + error.message); return; }
+  showToast('✅ 저장 완료');
+  closeModal('post-modal');
+  await loadPosts();
+  renderPostTable();
+  renderDashboard();
+  loadInputTable();
+}
+
+async function deletePost(id) {
+  const p = posts.find(x => x.id === id);
+  if (!confirm(`이 게시글을 삭제할까요?\n${p?.url}`)) return;
+  await supabase.from('collections').delete().eq('post_id', id);
+  await supabase.from('posts').delete().eq('id', id);
+  showToast('삭제 완료');
+  await loadPosts();
+  await loadCollections();
+  renderPostTable();
+  renderDashboard();
+  loadWeeklyTable();
+}
+
+// ─────────────────────────────
+// EXCEL EXPORT
+// ─────────────────────────────
+function exportExcel() {
+  const weeks = getAllWeeks();
+  const wb = XLSX.utils.book_new();
+
+  // 시트 1: 서포터별 요약
+  const summaryData = [
+    ['서포터명','담당자','게시글수','누적 조회수','누적 댓글','누적 문의댓글','이번주 증가','이번주 문의댓글']
+  ];
+  supporters.forEach(sup => {
+    const supPosts = posts.filter(p => p.supporter_id === sup.id);
+    const supCols = supPosts.map(p => getLatestCollection(p.id)).filter(Boolean);
+    const totalC = supCols.reduce((s, c) => s + (c.total_comments || 0), 0);
+    const totalV = supCols.reduce((s, c) => s + (c.view_count || 0), 0);
+    const weekI = supCols.reduce((s, c) => s + (c.increased_comments || 0), 0);
+    summaryData.push([sup.name, sup.manager, supPosts.length, totalV, totalC, totalC/2, weekI, weekI/2]);
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(summaryData), '서포터별 요약');
+
+  // 시트 2: 링크별 주차 데이터
+  const header = ['서포터','채널','제목','URL','작성일','누적조회수'];
+  weeks.forEach((w, i) => {
+    header.push(`${w}_누적댓글`);
+    if (i > 0) { header.push(`${w}_증가`); header.push(`${w}_문의댓글`); }
+  });
+  const weeklyData = [header];
+
+  posts.forEach(p => {
+    const row = [
+      p.supporters?.name, p.channel, p.title, p.url,
+      p.post_date, getLatestCollection(p.id)?.view_count ?? ''
+    ];
+    weeks.forEach((w, i) => {
+      const col = getCollectionByWeek(p.id, w);
+      row.push(col?.total_comments ?? '');
+      if (i > 0) {
+        row.push(col?.increased_comments ?? '');
+        row.push(col?.weekly_inquiry ?? '');
+      }
+    });
+    weeklyData.push(row);
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(weeklyData), '링크별 주차 데이터');
+
+  XLSX.writeFile(wb, `서포터_반응도_${getWeekLabel()}_${new Date().toLocaleDateString('ko-KR').replace(/\. /g,'-').replace('.','')}`.replace(' ','') + '.xlsx');
+  showToast('✅ 엑셀 다운로드 완료');
+}
+
+// ─────────────────────────────
+// UI HELPERS
+// ─────────────────────────────
+function showSection(name) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('sec-' + name)?.classList.add('active');
+  event?.currentTarget?.classList.add('active');
+  if (name === 'weekly') loadWeeklyTable();
+  if (name === 'channels') loadChannelTable();
+  if (name === 'input') loadInputTable();
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+function showToast(msg, duration = 2500) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), duration);
+}
+
+// 모달 배경 클릭 닫기
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) overlay.classList.remove('open');
+  });
+});
+
+// ─────────────────────────────
+// BOOT
+// ─────────────────────────────
+const supabaseJs = window.supabase; // CDN global
+window.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
