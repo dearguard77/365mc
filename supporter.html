@@ -544,7 +544,7 @@ td.url{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap
 // ─────────────────────────────
 // CONFIG & INIT
 // ─────────────────────────────
-let supabase = null;
+let db = null;
 let supporters = [];
 let posts = [];
 let collections = [];
@@ -557,7 +557,7 @@ const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJ
 
 function init() {
   const { createClient } = supabaseJs;
-  supabase = createClient(SB_URL, SB_KEY);
+  db = createClient(SB_URL, SB_KEY);
   document.getElementById('setup-screen').style.display = 'none';
   document.getElementById('app-screen').style.display = 'flex';
   setupDB().then(() => loadAll());
@@ -587,7 +587,7 @@ async function setupDB() {
   // 실제로는 Supabase 대시보드에서 아래 SQL 실행 필요
   // 여기서는 테이블 존재 여부만 체크
   try {
-    await supabase.from('supporters').select('id').limit(1);
+    await db.from('supporters').select('id').limit(1);
   } catch(e) {
     showToast('⚠️ 테이블 설정이 필요합니다. Supabase에서 SQL을 실행해주세요.', 5000);
   }
@@ -608,12 +608,12 @@ async function loadAll() {
 }
 
 async function loadSupporters() {
-  const { data, error } = await supabase.from('supporters').select('*').order('name');
+  const { data, error } = await db.from('supporters').select('*').order('name');
   if (!error) supporters = data || [];
 }
 
 async function loadPosts() {
-  const { data, error } = await supabase.from('posts')
+  const { data, error } = await db.from('posts')
     .select('*, supporters(name, manager)')
     .eq('status', '정상')
     .order('created_at');
@@ -621,7 +621,7 @@ async function loadPosts() {
 }
 
 async function loadCollections() {
-  const { data, error } = await supabase.from('collections')
+  const { data, error } = await db.from('collections')
     .select('*')
     .order('collected_at', { ascending: false });
   if (!error) collections = data || [];
@@ -1088,7 +1088,7 @@ async function saveWeeklyData() {
   }
 
   // upsert (같은 post_id + week_label 이면 업데이트)
-  const { error } = await supabase.from('collections').upsert(rows, {
+  const { error } = await db.from('collections').upsert(rows, {
     onConflict: 'post_id,week_label'
   });
 
@@ -1146,9 +1146,9 @@ async function saveSupporter() {
 
   let error;
   if (editingSupporterId) {
-    ({ error } = await supabase.from('supporters').update(data).eq('id', editingSupporterId));
+    ({ error } = await db.from('supporters').update(data).eq('id', editingSupporterId));
   } else {
-    ({ error } = await supabase.from('supporters').insert(data));
+    ({ error } = await db.from('supporters').insert(data));
   }
 
   if (error) { showToast('저장 실패: ' + error.message); return; }
@@ -1163,9 +1163,9 @@ async function saveSupporter() {
 async function deleteSupporter(id) {
   const s = supporters.find(x => x.id === id);
   if (!confirm(`"${s?.name}" 서포터를 삭제할까요? 관련 게시글과 수집 데이터도 모두 삭제됩니다.`)) return;
-  await supabase.from('collections').delete().in('post_id', posts.filter(p => p.supporter_id === id).map(p => p.id));
-  await supabase.from('posts').delete().eq('supporter_id', id);
-  await supabase.from('supporters').delete().eq('id', id);
+  await db.from('collections').delete().in('post_id', posts.filter(p => p.supporter_id === id).map(p => p.id));
+  await db.from('posts').delete().eq('supporter_id', id);
+  await db.from('supporters').delete().eq('id', id);
   showToast('삭제 완료');
   await loadAll();
 }
@@ -1219,9 +1219,9 @@ async function savePost() {
 
   let error;
   if (editingPostId) {
-    ({ error } = await supabase.from('posts').update(data).eq('id', editingPostId));
+    ({ error } = await db.from('posts').update(data).eq('id', editingPostId));
   } else {
-    ({ error } = await supabase.from('posts').insert(data));
+    ({ error } = await db.from('posts').insert(data));
   }
 
   if (error) { showToast('저장 실패: ' + error.message); return; }
@@ -1236,8 +1236,8 @@ async function savePost() {
 async function deletePost(id) {
   const p = posts.find(x => x.id === id);
   if (!confirm(`이 게시글을 삭제할까요?\n${p?.url}`)) return;
-  await supabase.from('collections').delete().eq('post_id', id);
-  await supabase.from('posts').delete().eq('id', id);
+  await db.from('collections').delete().eq('post_id', id);
+  await db.from('posts').delete().eq('id', id);
   showToast('삭제 완료');
   await loadPosts();
   await loadCollections();
