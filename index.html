@@ -625,7 +625,13 @@ function fmtN(n)  { return parseFloat(n.toFixed(1)).toLocaleString(); }
 function monthLabel(m) {
   if (!m) return '';
   const [y, mo] = m.split('-');
-  return y + '년 ' + parseInt(mo) + '월';
+  const yNum = parseInt(y), moNum = parseInt(mo);
+  const nextMoNum = moNum === 12 ? 1 : moNum + 1;
+  const nextYNum = moNum === 12 ? yNum + 1 : yNum;
+  if (nextYNum !== yNum) {
+    return yNum + '년 ' + moNum + '월~' + nextYNum + '년 ' + nextMoNum + '월';
+  }
+  return yNum + '년 ' + moNum + '~' + nextMoNum + '월';
 }
 function todayMonth() {
   const now = new Date();
