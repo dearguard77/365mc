@@ -1330,7 +1330,8 @@ function exportSMXLSX() {
   var smId=currentUser.smId,smName=currentUser.smName,sups=getSups(smId,currentMonth),wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,buildOverviewSheet(smName,sups,currentMonth),'전체 현황');
   sups.forEach(function(s){XLSX.utils.book_append_sheet(wb,buildSupporterSheet(smName,s),s.name.slice(0,28));});
-  XLSX.writeFile(wb,'SM보고서_'+smName+'_'+currentMonth+'.xlsx');
+  var mLabel=monthLabel(currentMonth).replace(/\d{4}년 /,function(y){return y.slice(2,4)+'년 ';});
+  XLSX.writeFile(wb,smName+' SM 보고서 '+mLabel+'.xlsx');
   showToast('Excel 다운로드 완료','success');
 }
 function exportAdminXLSX() {
@@ -1362,7 +1363,8 @@ function exportAdminXLSX() {
     XLSX.utils.book_append_sheet(wb,buildOverviewSheet(sm.name,sups,month),(sm.name+'_현황').slice(0,31));
     sups.forEach(function(s){XLSX.utils.book_append_sheet(wb,buildSupporterSheet(sm.name,s),(sm.name.slice(0,4)+'_'+s.name).slice(0,31));});
   });
-  XLSX.writeFile(wb,'SM보고서_전체_'+month+'.xlsx');
+  var mLabel2=monthLabel(month).replace(/\d{4}년 /,function(y){return y.slice(2,4)+'년 ';});
+  XLSX.writeFile(wb,'대전 SM 보고서 전체 '+mLabel2+'.xlsx');
   showToast('Excel 다운로드 완료','success');
 }
 
