@@ -1326,13 +1326,37 @@ function buildOverviewSheet(smName,sups,month) {
   ws['!ref']=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:sumRn,c:5}});
   return ws;
 }
+async function flushSaveTimers() {
+  // 디바운스 대기 중인 저장 타이머를 즉시 실행
+  const promises = [];
+  Object.keys(_saveTimers).forEach(function(rowId) {
+    clearTimeout(_saveTimers[rowId]);
+    delete _saveTimers[rowId];
+  });
+  // 현재 화면에 열린 서포터의 모든 행을 강제 저장
+  if (currentSupId) {
+    const sup = getSup(currentUser.smId, currentMonth, currentSupId);
+    if (sup && sup.rows) {
+      sup.rows.forEach(function(row) {
+        promises.push(saveActivity(row, sup.id));
+      });
+    }
+  }
+  if (promises.length) await Promise.all(promises);
+}
 function exportSMXLSX() {
-  var smId=currentUser.smId,smName=currentUser.smName,sups=getSups(smId,currentMonth),wb=XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb,buildOverviewSheet(smName,sups,currentMonth),'전체 현황');
-  sups.forEach(function(s){XLSX.utils.book_append_sheet(wb,buildSupporterSheet(smName,s),s.name.slice(0,28));});
-  var mLabel=monthLabel(currentMonth).replace(/\d{4}년 /,function(y){return y.slice(2,4)+'년 ';});
-  XLSX.writeFile(wb,smName+' SM 보고서 '+mLabel+'.xlsx');
-  showToast('Excel 다운로드 완료','success');
+  var smId=currentUser.smId,smName=currentUser.smName;
+  var btn=event&&event.target;
+  if(btn){btn.disabled=true;btn.textContent='저장 중...';}
+  flushSaveTimers().then(function(){
+    var sups=getSups(smId,currentMonth),wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,buildOverviewSheet(smName,sups,currentMonth),'전체 현황');
+    sups.forEach(function(s){XLSX.utils.book_append_sheet(wb,buildSupporterSheet(smName,s),s.name.slice(0,28));});
+    var mLabel=monthLabel(currentMonth).replace(/\d{4}년 /,function(y){return y.slice(2,4)+'년 ';});
+    XLSX.writeFile(wb,smName+' SM 보고서 '+mLabel+'.xlsx');
+    showToast('Excel 다운로드 완료','success');
+    if(btn){btn.disabled=false;btn.textContent='📥 Excel 다운로드';}
+  });
 }
 function exportAdminXLSX() {
   var month=document.getElementById('adminMonthSel').value,wb=XLSX.utils.book_new(),allSups=[];
