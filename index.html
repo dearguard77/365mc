@@ -368,20 +368,38 @@ table tr:hover td{background:var(--bg)}
   <div class="login-wrap">
     <div class="login-card">
       <div class="login-logo"><img src="./logo.png" alt="365mc" style="height:52px;object-fit:contain"></div>
-      <div class="login-sub">대전병원 서포터 활동 보고서 시스템</div>
-      <div class="form-group" style="text-align:left">
-        <label class="form-label">이름 (ID)</label>
-        <input type="text" class="form-input" id="loginName" placeholder="이름을 입력하세요"
-          onkeydown="if(event.key==='Enter')document.getElementById('loginPw').focus()">
+      <div class="login-sub">서포터 활동 보고서 시스템</div>
+
+      <!-- 단계 1: 팀 선택 -->
+      <div id="loginStep1">
+        <div class="form-group" style="text-align:left">
+          <label class="form-label">팀 선택</label>
+        </div>
+        <div id="teamLoginGrid" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px"></div>
+        <div id="loginError" style="display:none;color:var(--danger);font-size:13px;margin-bottom:12px;text-align:left;padding:8px 12px;background:var(--danger-light);border-radius:8px"></div>
       </div>
-      <div class="form-group" style="text-align:left">
-        <label class="form-label">비밀번호 (휴대폰 뒷 4자리)</label>
-        <input type="password" class="form-input" id="loginPw" placeholder="••••"
-          onkeydown="if(event.key==='Enter')doLogin()">
+
+      <!-- 단계 2: 이름 + 비밀번호 -->
+      <div id="loginStep2" style="display:none">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+          <button class="btn btn-secondary btn-sm" onclick="backToTeamSelect()" style="padding:4px 10px;font-size:12px">← 팀 선택</button>
+          <span id="selectedTeamBadge" style="font-size:13px;font-weight:600;color:var(--accent)"></span>
+        </div>
+        <div class="form-group" style="text-align:left">
+          <label class="form-label">이름 선택</label>
+          <input type="text" class="form-input" id="loginName" placeholder="이름을 입력하세요"
+            onkeydown="if(event.key==='Enter')document.getElementById('loginPw').focus()">
+        </div>
+        <div id="smLoginGrid" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px"></div>
+        <div class="form-group" style="text-align:left">
+          <label class="form-label">비밀번호 (휴대폰 뒷 4자리)</label>
+          <input type="password" class="form-input" id="loginPw" placeholder="••••"
+            onkeydown="if(event.key==='Enter')doLogin()">
+        </div>
+        <div id="loginError2" style="display:none;color:var(--danger);font-size:13px;margin-bottom:12px;text-align:left;padding:8px 12px;background:var(--danger-light);border-radius:8px"></div>
+        <button class="btn btn-primary" style="width:100%;justify-content:center;padding:12px" onclick="doLogin()">로그인</button>
       </div>
-      <div id="smLoginGrid" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px"></div>
-      <div id="loginError" style="display:none;color:var(--danger);font-size:13px;margin-bottom:12px;text-align:left;padding:8px 12px;background:var(--danger-light);border-radius:8px"></div>
-      <button class="btn btn-primary" style="width:100%;justify-content:center;padding:12px" onclick="doLogin()">로그인</button>
+
       <div class="login-divider">또는</div>
       <button class="admin-btn" onclick="openAdminLogin()">&#9881;&#65039; 관리자 로그인</button>
     </div>
@@ -467,17 +485,25 @@ table tr:hover td{background:var(--bg)}
   <nav class="main-nav">
     <div class="nav-tab active" onclick="switchAdminTab('all',this)">&#128202; 전체 현황</div>
     <div class="nav-tab" onclick="switchAdminTab('manage',this)">&#9881;&#65039; 시스템 관리</div>
+    <div class="nav-tab" onclick="switchAdminTab('teams',this)">&#127963; 팀 관리</div>
   </nav>
+
+  <!-- 전체 현황 탭 -->
   <div id="adminTab-all" class="main-content">
     <div class="section-header">
       <div><div class="section-title">전체 보고서 현황</div><div class="section-sub">모든 SM · 서포터 통합 집계</div></div>
       <div style="display:flex;gap:10px;align-items:center">
+        <select class="form-input" style="width:auto" id="adminTeamFilter" onchange="renderAdminAll()">
+          <option value="">전체 팀</option>
+        </select>
         <select class="form-input" style="width:auto" id="adminMonthSel" onchange="renderAdminAll()"></select>
         <button class="btn btn-secondary" onclick="exportAdminXLSX()">&#128229; 전체 Excel 다운로드</button>
       </div>
     </div>
     <div id="adminAllContent"></div>
   </div>
+
+  <!-- 시스템 관리 탭 -->
   <div id="adminTab-manage" class="main-content" style="display:none">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px">
       <div class="admin-panel">
@@ -490,29 +516,52 @@ table tr:hover td{background:var(--bg)}
       </div>
     </div>
   </div>
+
+  <!-- 팀 관리 탭 -->
+  <div id="adminTab-teams" class="main-content" style="display:none">
+    <div style="display:grid;grid-template-columns:280px 1fr;gap:24px;align-items:start">
+      <div class="admin-panel">
+        <div class="admin-panel-header">&#127963; 팀 목록
+          <button class="btn btn-primary btn-sm" onclick="openAddTeam()">+ 팀 추가</button>
+        </div>
+        <div class="admin-panel-body" id="teamListAdmin"></div>
+      </div>
+      <div id="teamDetailPanel" style="display:none">
+        <div class="admin-panel" style="margin-bottom:20px">
+          <div class="admin-panel-header">
+            <span id="teamDetailTitle">팀 SM 관리</span>
+            <button class="btn btn-primary btn-sm" onclick="openAddTeamSM()">+ SM 추가</button>
+          </div>
+          <div class="admin-panel-body" id="teamSMList"></div>
+        </div>
+        <div class="admin-panel" style="margin-bottom:20px">
+          <div class="admin-panel-header">&#128181; 인센티브 항목
+            <button class="btn btn-primary btn-sm" onclick="openAddIncentiveCat()">+ 항목 추가</button>
+          </div>
+          <div class="admin-panel-body">
+            <table style="width:100%;font-size:13px;border-collapse:collapse" id="incentiveCatTable">
+              <thead><tr style="background:var(--surface-2)">
+                <th style="padding:8px;text-align:left">항목명</th>
+                <th style="padding:8px;text-align:right">단가</th>
+                <th style="padding:8px;text-align:center">사용</th>
+                <th style="padding:8px;text-align:center">순서</th>
+                <th style="padding:8px"></th>
+              </tr></thead>
+              <tbody id="incentiveCatBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="admin-panel">
+          <div class="admin-panel-header">&#128172; 댓글 인센티브 설정</div>
+          <div class="admin-panel-body" id="commentIncentivePanel"></div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
-<!-- DATALIST: 구분 자동완성 -->
-<datalist id="catList">
-  <option value="블로그">
-  <option value="지살사">
-  <option value="여우야">
-  <option value="성예사">
-  <option value="대세맘">
-  <option value="맘스홀릭">
-  <option value="씨씨앙">
-  <option value="다이렉트">
-  <option value="파우더룸">
-  <option value="청주맘블리">
-  <option value="줌마렐라">
-  <option value="메이크마이웨딩">
-  <option value="성공기">
-  <option value="강남언니">
-  <option value="바비톡">
-  <option value="속닥">
-  <option value="페이스북">
-  <option value="기타">
-</datalist>
+<!-- DATALIST: 팀 인센티브 설정에서 동적 생성 -->
+<datalist id="catList"></datalist>
 
 <!-- MODALS -->
 <div class="modal-overlay" id="adminLoginModal">
@@ -549,12 +598,65 @@ table tr:hover td{background:var(--bg)}
       <input type="text" class="form-input" id="newSMName" placeholder="예: 홍길동"></div>
     <div class="form-group"><label class="form-label">비밀번호 (휴대폰 뒷 4자리) *</label>
       <input type="password" class="form-input" id="newSMPw" placeholder="••••" maxlength="10"></div>
+    <div class="form-group"><label class="form-label">소속 팀 *</label>
+      <select class="form-input" id="newSMTeamSel"></select></div>
     <div class="form-actions">
       <button class="btn btn-secondary" onclick="closeModal('addSMModal')">취소</button>
       <button class="btn btn-primary" onclick="saveSM()">저장</button>
     </div>
   </div>
 </div>
+
+<!-- 팀 추가/수정 모달 -->
+<div class="modal-overlay" id="teamModal">
+  <div class="modal">
+    <div class="modal-title" id="teamModalTitle">팀 추가</div>
+    <input type="hidden" id="editTeamId">
+    <div class="form-group"><label class="form-label">팀 이름 *</label>
+      <input type="text" class="form-input" id="teamName" placeholder="예: 부산마케팅팀"></div>
+    <div class="form-actions">
+      <button class="btn btn-secondary" onclick="closeModal('teamModal')">취소</button>
+      <button class="btn btn-primary" onclick="saveTeam()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 팀 SM 추가/수정 모달 -->
+<div class="modal-overlay" id="teamSMModal">
+  <div class="modal">
+    <div class="modal-title" id="teamSMModalTitle">SM 추가</div>
+    <input type="hidden" id="editTeamSMId">
+    <div class="form-group"><label class="form-label">SM 이름 *</label>
+      <input type="text" class="form-input" id="teamSMName" placeholder="예: 홍길동"></div>
+    <div class="form-group"><label class="form-label">비밀번호 (휴대폰 뒷 4자리) *</label>
+      <input type="password" class="form-input" id="teamSMPw" placeholder="••••" maxlength="10"></div>
+    <div class="form-group"><label class="form-label">소속 팀</label>
+      <select class="form-input" id="teamSMTeamSel"></select></div>
+    <div class="form-actions">
+      <button class="btn btn-secondary" onclick="closeModal('teamSMModal')">취소</button>
+      <button class="btn btn-primary" onclick="saveTeamSM()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 인센티브 항목 추가/수정 모달 -->
+<div class="modal-overlay" id="incentiveCatModal">
+  <div class="modal">
+    <div class="modal-title" id="incentiveCatModalTitle">인센티브 항목 추가</div>
+    <input type="hidden" id="editIncentiveCatId">
+    <div class="form-group"><label class="form-label">항목명 *</label>
+      <input type="text" class="form-input" id="incentiveCatName" placeholder="예: 블로그"></div>
+    <div class="form-group"><label class="form-label">건당 단가 (원) *</label>
+      <input type="number" class="form-input" id="incentiveCatPrice" placeholder="예: 10000" min="0" step="100"></div>
+    <div class="form-group"><label class="form-label">표시 순서</label>
+      <input type="number" class="form-input" id="incentiveCatOrder" placeholder="예: 1" min="0"></div>
+    <div class="form-actions">
+      <button class="btn btn-secondary" onclick="closeModal('incentiveCatModal')">취소</button>
+      <button class="btn btn-primary" onclick="saveIncentiveCat()">저장</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="confirmModal">
   <div class="modal">
     <div class="modal-title">확인</div>
@@ -576,9 +678,7 @@ const ADMIN_PASSWORD = '3653';
 const SUPABASE_URL   = 'https://czkvtzgdsshygrzudilk.supabase.co';
 const SUPABASE_KEY   = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN6a3Z0emdkc3NoeWdyenVkaWxrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzNTg2MzcsImV4cCI6MjA5NzkzNDYzN30._R-MK05-k2NeBkqZip0pu7zrcH-t7Sb1yoxyQchA0jk';
 
-const CAT_APP = ['성공기','강남언니','바비톡','속닥','페이스북'];
-const CAT_10K = ['블로그','지살사','여우야','성예사','대세맘','맘스홀릭','씨씨앙','다이렉트','파우더룸','청주맘블리','줌마렐라','메이크마이웨딩','기타'];
-const CAT_ALL = [...CAT_10K, ...CAT_APP];
+// 인센티브 설정은 로그인 팀 DB에서 로드 (하드코딩 제거)
 
 // ============================================================
 // SUPABASE API
@@ -611,10 +711,20 @@ const SB = {
 // ============================================================
 // STATE
 // ============================================================
-let db = { sms: [], months: [], supporters: {} };
-let currentUser   = null;
-let currentSupId  = null;
-let currentMonth  = '';
+let db = {
+  teams: [],
+  sms: [],
+  months: [],
+  supporters: {},
+  incentiveConfig: {
+    categories: [],
+    commentIncentive: {}
+  }
+};
+let currentUser         = null;  // {type, smId, smName, teamId, teamName}
+let currentSupId        = null;
+let currentMonth        = '';
+let adminSelectedTeamId = null;
 
 // ============================================================
 // UTILS
@@ -658,24 +768,38 @@ function setBusy(on) {
 }
 
 // ============================================================
-// CALCULATION ENGINE (수정 불가)
+// CALCULATION ENGINE — DB 설정 기반 (대전 결과 동일 보장)
 // ============================================================
-function calc(rows) {
-  let cnt10k=0, cnt5k=0, totalCmt=0;
+function calc(rows, config) {
+  config = config || db.incentiveConfig;
+  const cats = (config.categories || []).filter(c => c.is_active);
+  const ci   = config.commentIncentive || {};
+  const priceMap = {};
+  cats.forEach(c => { priceMap[c.category_name] = c.unit_price; });
+
+  let cnt10k=0, cnt5k=0, fee10k=0, fee5k=0, totalCmt=0;
   rows = (rows||[]).map(r => {
     const cat = (r.category||'').trim();
     const cmt = parseFloat(r.comments)||0;
     totalCmt += cmt;
-    if (CAT_APP.indexOf(cat) >= 0) cnt5k++;
-    else if (cat !== '') cnt10k++;
+    if (cat !== '' && priceMap.hasOwnProperty(cat)) {
+      const p = priceMap[cat];
+      if (p >= 10000) { cnt10k++; fee10k += p; }
+      else            { cnt5k++;  fee5k  += p; }
+    } else if (cat !== '') {
+      cnt10k++; fee10k += 10000;
+    }
     return {...r, half: cmt/2};
   });
-  const halfTotal = totalCmt/2;
-  const fee10k    = cnt10k*10000;
-  const fee5k     = cnt5k*5000;
-  const incentive = halfTotal>50 ? (halfTotal-50)*5000 : 0;
-  const total     = fee10k+fee5k+incentive;
-  return {cnt10k,cnt5k,fee10k,fee5k,totalCmt,halfTotal,incentive,total,rows};
+
+  const halfTotal = totalCmt / 2;
+  // 기존 대전: halfTotal>50 → (halfTotal-50)*5000 — DB(base=50,price=5000)로 완전 동일
+  const cEnabled = (ci.enabled !== false);
+  const cBase    = (ci.base_count  != null) ? ci.base_count  : 50;
+  const cPrice   = (ci.unit_price  != null) ? ci.unit_price  : 5000;
+  const incentive = (cEnabled && halfTotal > cBase) ? (halfTotal - cBase) * cPrice : 0;
+  const total = fee10k + fee5k + incentive;
+  return {cnt10k, cnt5k, fee10k, fee5k, totalCmt, halfTotal, incentive, total, rows};
 }
 
 // ============================================================
@@ -690,33 +814,69 @@ function getSup(smId, month, supId) { return getSups(smId,month).find(s=>s.id===
 function getSM(smId) { return db.sms.find(s=>s.id===smId); }
 
 // ============================================================
-// SUPABASE LOAD — 앱 시작 시 전체 데이터 로드
+// SUPABASE LOAD
 // ============================================================
+
+// 앱 시작: 팀 목록 + 공통 활동월만 로드
 async function loadAll() {
   setBusy(true);
   try {
-    // 1. SM 목록
-    const sms = await SB.get('sm_users', '?order=created_at');
-    db.sms = sms.map(r => ({ id: r.id, name: r.name, password: r.password }));
+    const teams = await SB.get('teams', '?order=created_at');
+    db.teams = teams.map(r => ({ id: r.id, name: r.name }));
 
-    // 2. 활동월 목록
     const months = await SB.get('sm_months', '?order=month.desc');
     db.months = months.map(r => r.month);
-
-    // 현재 월 자동 추가
     const cur = todayMonth();
     if (!db.months.includes(cur)) {
       await SB.post('sm_months', { month: cur });
       db.months.unshift(cur);
     }
     currentMonth = db.months.includes(cur) ? cur : (db.months[0]||'');
+  } catch(e) {
+    showToast('초기 데이터 로드 실패: ' + e.message, 'error');
+    console.error(e);
+  }
+  setBusy(false);
+}
 
-    // 3. 서포터 + 활동내역 전체 로드
+// 팀 선택 후: 해당 팀 SM + 인센티브 설정 로드
+async function loadTeamData(teamId) {
+  setBusy(true);
+  try {
+    const sms = await SB.get('sm_users', `?team_id=eq.${teamId}&order=created_at`);
+    db.sms = sms.map(r => ({ id: r.id, name: r.name, password: r.password, teamId: r.team_id }));
+
+    const cats = await SB.get('team_incentive_categories', `?team_id=eq.${teamId}&order=sort_order`);
+    db.incentiveConfig.categories = cats.map(c => ({
+      id: c.id, category_name: c.category_name, unit_price: c.unit_price,
+      is_active: c.is_active, sort_order: c.sort_order
+    }));
+
+    const ci = await SB.get('team_comment_incentive', `?team_id=eq.${teamId}`);
+    db.incentiveConfig.commentIncentive = ci.length > 0
+      ? { id: ci[0].id, enabled: ci[0].enabled, base_count: ci[0].base_count, unit_price: ci[0].unit_price }
+      : { enabled: true, base_count: 50, unit_price: 5000 };
+
+    updateCatList();
+  } catch(e) {
+    showToast('팀 데이터 로드 실패: ' + e.message, 'error');
+  }
+  setBusy(false);
+}
+
+// 로그인 후: 해당 팀 서포터+활동 로드 (팀 기준 명시적 필터)
+async function loadSMData(teamId) {
+  setBusy(true);
+  try {
     db.supporters = {};
-    const sups = await SB.get('sm_supporters', '?order=created_at');
-    const acts  = await SB.get('sm_activities', '?order=created_at');
+    const sups = await SB.get('sm_supporters', `?team_id=eq.${teamId}&order=created_at`);
+    if (!sups.length) { setBusy(false); return; }
 
-    // 활동내역을 supporter_id 기준으로 그룹핑
+    // supporter_id 목록으로 activities 명시적 필터 (다른 팀 데이터 완전 차단)
+    const supIds = sups.map(s => s.id);
+    const acts = await SB.get('sm_activities',
+      `?supporter_id=in.(${supIds.join(',')})&order=created_at`);
+
     const actMap = {};
     acts.forEach(a => {
       if (!actMap[a.supporter_id]) actMap[a.supporter_id] = [];
@@ -735,50 +895,85 @@ async function loadAll() {
       });
     });
   } catch(e) {
-    showToast('데이터 로드 실패: ' + e.message, 'error');
-    console.error(e);
+    showToast('서포터 데이터 로드 실패: ' + e.message, 'error');
   }
   setBusy(false);
+}
+
+// datalist 동적 갱신
+function updateCatList() {
+  const dl = document.getElementById('catList');
+  if (!dl) return;
+  dl.innerHTML = (db.incentiveConfig.categories || [])
+    .filter(c => c.is_active)
+    .sort((a,b) => a.sort_order - b.sort_order)
+    .map(c => `<option value="${esc(c.category_name)}">`)
+    .join('');
 }
 
 // ============================================================
 // LOGIN
 // ============================================================
 function renderLoginPage() {
-  const n = document.getElementById('loginName');
-  const p = document.getElementById('loginPw');
-  const e = document.getElementById('loginError');
-  if (n) n.value=''; if (p) p.value='';
-  if (e) { e.style.display='none'; e.textContent=''; }
-  // SM 버튼 목록 렌더
+  ['loginName','loginPw'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  ['loginError','loginError2'].forEach(id => { const el=document.getElementById(id); if(el){ el.style.display='none'; el.textContent=''; }});
+  document.getElementById('loginStep1').style.display='block';
+  document.getElementById('loginStep2').style.display='none';
+  const grid = document.getElementById('teamLoginGrid');
+  if (grid) {
+    grid.innerHTML = db.teams.map(t =>
+      `<button class="sm-hint-btn" style="font-size:14px;padding:8px 16px" onclick="selectTeam('${t.id}','${esc(t.name)}')">${esc(t.name)}</button>`
+    ).join('');
+  }
+}
+
+async function selectTeam(teamId, teamName) {
+  await loadTeamData(teamId);
+  document.getElementById('loginStep1').style.display='none';
+  document.getElementById('loginStep2').style.display='block';
+  document.getElementById('selectedTeamBadge').textContent = teamName;
   const grid = document.getElementById('smLoginGrid');
   if (grid) {
     grid.innerHTML = db.sms.map(sm =>
       `<button class="sm-hint-btn" onclick="document.getElementById('loginName').value='${esc(sm.name)}';document.getElementById('loginPw').focus()">${esc(sm.name)}</button>`
     ).join('');
   }
-  setTimeout(() => { if(n) n.focus(); }, 100);
+  document.getElementById('loginStep2').dataset.teamId   = teamId;
+  document.getElementById('loginStep2').dataset.teamName = teamName;
+  setTimeout(() => { document.getElementById('loginName').focus(); }, 100);
 }
 
-function doLogin() {
-  const name = document.getElementById('loginName').value.trim();
-  const pw   = document.getElementById('loginPw').value;
-  if (!name) { showLoginError('이름을 입력해 주세요.'); return; }
-  if (!pw)   { showLoginError('비밀번호를 입력해 주세요.'); return; }
+function backToTeamSelect() {
+  document.getElementById('loginStep1').style.display='block';
+  document.getElementById('loginStep2').style.display='none';
+  ['loginName','loginPw'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  ['loginError','loginError2'].forEach(id => { const el=document.getElementById(id); if(el){ el.style.display='none'; el.textContent=''; }});
+}
+
+async function doLogin() {
+  const step2   = document.getElementById('loginStep2');
+  const teamId  = step2.dataset.teamId;
+  const teamName= step2.dataset.teamName;
+  const name    = document.getElementById('loginName').value.trim();
+  const pw      = document.getElementById('loginPw').value;
+  if (!teamId)  { showLoginError('팀을 먼저 선택해 주세요.', 1); return; }
+  if (!name)    { showLoginError('이름을 입력해 주세요.', 2); return; }
+  if (!pw)      { showLoginError('비밀번호를 입력해 주세요.', 2); return; }
   const sm = db.sms.find(s => s.name === name);
-  if (!sm)   { showLoginError('등록되지 않은 이름입니다.'); return; }
-  if (pw !== sm.password) { showLoginError('비밀번호가 올바르지 않습니다.'); return; }
-  document.getElementById('loginError').style.display='none';
-  currentUser = { type:'sm', smId:sm.id, smName:sm.name };
-  // 로그인 상태 저장 (자동 로그인)
-  localStorage.setItem('sm_session', JSON.stringify({ type:'sm', smId:sm.id, smName:sm.name }));
+  if (!sm)      { showLoginError('등록되지 않은 이름입니다.', 2); return; }
+  if (pw !== sm.password) { showLoginError('비밀번호가 올바르지 않습니다.', 2); document.getElementById('loginPw').value=''; return; }
+  await loadSMData(teamId);
+  currentUser = { type:'sm', smId:sm.id, smName:sm.name, teamId, teamName };
+  localStorage.setItem('sm_session', JSON.stringify({ type:'sm', smId:sm.id, smName:sm.name, teamId, teamName }));
   document.getElementById('userBadgeText').textContent = sm.name+' SM';
   document.getElementById('appHeader').style.display='flex';
   showPage('smPage');
   renderSMPage();
 }
-function showLoginError(msg) {
-  const e = document.getElementById('loginError');
+function showLoginError(msg, step) {
+  const id = step===2 ? 'loginError2' : 'loginError';
+  const e  = document.getElementById(id);
+  if (!e) return;
   e.textContent=msg; e.style.display='block';
   if (msg.includes('비밀번호')) { document.getElementById('loginPw').value=''; document.getElementById('loginPw').focus(); }
 }
@@ -829,8 +1024,10 @@ function switchAdminTab(tab, el) {
   el.classList.add('active');
   document.getElementById('adminTab-all').style.display    = tab==='all'   ?'block':'none';
   document.getElementById('adminTab-manage').style.display = tab==='manage'?'block':'none';
+  document.getElementById('adminTab-teams').style.display  = tab==='teams' ?'block':'none';
   if (tab==='manage') renderAdminManage();
   if (tab==='all')    renderAdminAll();
+  if (tab==='teams')  renderAdminTeams();
 }
 
 // ============================================================
@@ -1018,7 +1215,8 @@ async function saveSupporter() {
     } else {
       const newId = uid();
       const res = await SB.post('sm_supporters', {
-        id: newId, sm_id: currentUser.smId, month: currentMonth, name, surgery
+        id: newId, sm_id: currentUser.smId, month: currentMonth, name, surgery,
+        team_id: currentUser.teamId
       });
       const inserted = Array.isArray(res)?res[0]:res;
       getSups(currentUser.smId, currentMonth).push({ id:inserted.id||newId, name, surgery, rows:[] });
@@ -1076,19 +1274,60 @@ function renderOverview() {
 // ============================================================
 // ADMIN PAGE
 // ============================================================
-function renderAdminPage() {
+async function renderAdminPage() {
   const ms = document.getElementById('adminMonthSel');
   ms.innerHTML = db.months.map(m=>`<option value="${m}" ${m===currentMonth?'selected':''}>${monthLabel(m)}</option>`).join('');
+  const tf = document.getElementById('adminTeamFilter');
+  if (tf) tf.innerHTML = '<option value="">전체 팀</option>'+db.teams.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('');
+  await loadAllTeamsData();
   renderAdminAll();
 }
+
+async function loadAllTeamsData() {
+  setBusy(true);
+  try {
+    const sms = await SB.get('sm_users', '?order=created_at');
+    db.sms = sms.map(r => ({ id: r.id, name: r.name, password: r.password, teamId: r.team_id }));
+    const sups = await SB.get('sm_supporters', '?order=created_at');
+    if (sups.length > 0) {
+      const supIds = sups.map(s => s.id);
+      const acts = await SB.get('sm_activities', `?supporter_id=in.(${supIds.join(',')})&order=created_at`);
+      const actMap = {};
+      acts.forEach(a => {
+        if (!actMap[a.supporter_id]) actMap[a.supporter_id] = [];
+        actMap[a.supporter_id].push({ id:a.id, date:a.date||'', category:a.category||'', title:a.title||'', link:a.link||'', comments:a.comments||'' });
+      });
+      db.supporters = {};
+      sups.forEach(s => {
+        if (!db.supporters[s.sm_id]) db.supporters[s.sm_id] = {};
+        if (!db.supporters[s.sm_id][s.month]) db.supporters[s.sm_id][s.month] = [];
+        db.supporters[s.sm_id][s.month].push({ id:s.id, name:s.name, surgery:s.surgery||'', rows:actMap[s.id]||[] });
+      });
+    }
+    db.teamIncentiveConfigs = {};
+    for (const team of db.teams) {
+      const cats = await SB.get('team_incentive_categories', `?team_id=eq.${team.id}&order=sort_order`);
+      const ci   = await SB.get('team_comment_incentive', `?team_id=eq.${team.id}`);
+      db.teamIncentiveConfigs[team.id] = {
+        categories: cats.map(c=>({id:c.id,category_name:c.category_name,unit_price:c.unit_price,is_active:c.is_active,sort_order:c.sort_order})),
+        commentIncentive: ci.length>0 ? {id:ci[0].id,enabled:ci[0].enabled,base_count:ci[0].base_count,unit_price:ci[0].unit_price} : {enabled:true,base_count:50,unit_price:5000}
+      };
+    }
+  } catch(e) { showToast('관리자 데이터 로드 실패: '+e.message,'error'); }
+  setBusy(false);
+}
+
 function renderAdminAll() {
   const month = document.getElementById('adminMonthSel').value;
+  const filterTeam = (document.getElementById('adminTeamFilter')||{}).value||'';
   let html='', grand=0;
-  db.sms.forEach(sm => {
+  const filteredSMs = filterTeam ? db.sms.filter(sm=>sm.teamId===filterTeam) : db.sms;
+  filteredSMs.forEach(sm => {
+    const config = (db.teamIncentiveConfigs&&db.teamIncentiveConfigs[sm.teamId]) || db.incentiveConfig;
     const sups = getSups(sm.id, month);
     let smTotal=0;
     const rows = sups.map(s => {
-      const c=calc(s.rows); smTotal+=c.total; grand+=c.total;
+      const c=calc(s.rows,config); smTotal+=c.total; grand+=c.total;
       return `<tr>
         <td style="padding-left:20px;color:var(--text-muted);font-size:12px">${esc(sm.name)}</td>
         <td style="font-weight:600">${esc(s.name)}</td>
@@ -1100,50 +1339,50 @@ function renderAdminAll() {
         <td style="text-align:right;font-weight:700;color:var(--highlight)">${fmt(c.total)}</td>
       </tr>`;
     }).join('') || `<tr><td colspan="8" style="text-align:center;padding:14px;color:var(--text-muted);font-size:12px">${esc(sm.name)} — 등록된 서포터 없음</td></tr>`;
+    const teamName = (db.teams.find(t=>t.id===sm.teamId)||{}).name||'';
     html += `<div class="admin-panel" style="margin-bottom:20px">
-      <div class="admin-panel-header"><span class="tag tag-sm">${esc(sm.name)} SM</span><span style="font-weight:700;color:var(--highlight)">${fmt(smTotal)}</span></div>
+      <div class="admin-panel-header"><span class="tag tag-sm">${esc(sm.name)} SM</span>${teamName?`<span style="font-size:11px;color:var(--text-muted);margin-left:4px">${esc(teamName)}</span>`:''}<span style="font-weight:700;color:var(--highlight)">${fmt(smTotal)}</span></div>
       <div class="table-wrap"><table>
         <thead><tr><th>SM</th><th>서포터</th><th>수술부위/집도의</th>
-          <th style="text-align:right">블로그·카페·커뮤니티</th>
-          <th style="text-align:right">성공기·어플 (×5K)</th>
-          <th style="text-align:right">1/2 댓글</th>
-          <th style="text-align:right">댓글 인센티브</th>
+          <th style="text-align:right">고단가 항목</th><th style="text-align:right">저단가 항목</th>
+          <th style="text-align:right">1/2 댓글</th><th style="text-align:right">댓글 인센티브</th>
           <th style="text-align:right">총 지급액</th></tr></thead>
         <tbody>${rows}</tbody>
       </table></div>
     </div>`;
   });
-  html += `<div class="grand-total-bar">
-    <div style="font-size:16px;font-weight:700">${monthLabel(month)} 전체 총 지급액</div>
-    <div style="font-size:28px;font-weight:800">${fmt(grand)}</div>
-  </div>`;
+  if (!filteredSMs.length) html='<div style="text-align:center;padding:48px;color:var(--text-muted)">해당 팀에 등록된 SM이 없습니다</div>';
+  const filterLabel = filterTeam?(db.teams.find(t=>t.id===filterTeam)||{}).name||'':'전체';
+  html += `<div class="grand-total-bar"><div style="font-size:16px;font-weight:700">${monthLabel(month)} ${filterLabel} 총 지급액</div><div style="font-size:28px;font-weight:800">${fmt(grand)}</div></div>`;
   document.getElementById('adminAllContent').innerHTML = html;
 }
+
 function renderAdminManage() {
-  document.getElementById('smListAdmin').innerHTML = db.sms.map(sm =>
-    `<div class="admin-item">
+  document.getElementById('smListAdmin').innerHTML = db.sms.map(sm => {
+    const teamName = (db.teams.find(t=>t.id===sm.teamId)||{}).name||'미지정';
+    return `<div class="admin-item">
       <div><div class="admin-item-name">${esc(sm.name)}</div>
-      <div class="admin-item-sub">비밀번호: ${sm.password||'미설정'}</div></div>
+      <div class="admin-item-sub">${esc(teamName)} · 비밀번호: ${'•'.repeat((sm.password||'').length)||'미설정'}</div></div>
       <div class="admin-actions">
         <button class="btn btn-sm btn-secondary" onclick="openEditSM('${sm.id}')">수정</button>
         <button class="btn btn-sm btn-danger" onclick="deleteSM('${sm.id}','${esc(sm.name)}')">삭제</button>
       </div>
-    </div>`
-  ).join('') || '<div style="color:var(--text-muted);font-size:13px">등록된 SM이 없습니다</div>';
+    </div>`;
+  }).join('') || '<div style="color:var(--text-muted);font-size:13px">등록된 SM이 없습니다</div>';
   document.getElementById('monthListAdmin').innerHTML = db.months.map(m =>
-    `<div class="admin-item">
-      <div class="admin-item-name">${monthLabel(m)}</div>
-      <button class="btn btn-sm btn-danger" onclick="deleteMonth('${m}')">삭제</button>
-    </div>`
+    `<div class="admin-item"><div class="admin-item-name">${monthLabel(m)}</div>
+    <button class="btn btn-sm btn-danger" onclick="deleteMonth('${m}')">삭제</button></div>`
   ).join('');
 }
 
-// SM CRUD
+// SM CRUD (시스템 관리 탭)
 function openAddSM() {
   document.getElementById('addSMModalTitle').textContent='SM 추가';
   document.getElementById('editSMId').value='';
   document.getElementById('newSMName').value='';
   document.getElementById('newSMPw').value='';
+  const sel=document.getElementById('newSMTeamSel');
+  if(sel) sel.innerHTML=db.teams.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('');
   openModal('addSMModal');
   setTimeout(()=>document.getElementById('newSMName').focus(),100);
 }
@@ -1153,31 +1392,302 @@ function openEditSM(smId) {
   document.getElementById('editSMId').value=smId;
   document.getElementById('newSMName').value=sm.name;
   document.getElementById('newSMPw').value=sm.password||'';
+  const sel=document.getElementById('newSMTeamSel');
+  if(sel) sel.innerHTML=db.teams.map(t=>`<option value="${t.id}" ${t.id===sm.teamId?'selected':''}>${esc(t.name)}</option>`).join('');
   openModal('addSMModal');
 }
 async function saveSM() {
   const name   = document.getElementById('newSMName').value.trim();
   const pw     = document.getElementById('newSMPw').value.trim();
   const editId = document.getElementById('editSMId').value;
-  if (!name) { showToast('이름을 입력해 주세요','error'); return; }
-  if (!pw)   { showToast('비밀번호를 입력해 주세요','error'); return; }
+  const sel    = document.getElementById('newSMTeamSel');
+  const teamId = sel?sel.value:(db.teams[0]||{}).id;
+  if (!name)   { showToast('이름을 입력해 주세요','error'); return; }
+  if (!pw)     { showToast('비밀번호를 입력해 주세요','error'); return; }
+  if (!teamId) { showToast('팀을 선택해 주세요','error'); return; }
   setBusy(true);
   try {
     if (editId) {
       if (db.sms.find(s=>s.name===name&&s.id!==editId)) { showToast('이미 존재하는 이름입니다','error'); setBusy(false); return; }
-      await SB.patch('sm_users', `?id=eq.${editId}`, { name, password:pw });
-      const sm=getSM(editId); if(sm){sm.name=name;sm.password=pw;}
+      await SB.patch('sm_users', `?id=eq.${editId}`, { name, password:pw, team_id:teamId });
+      const sm=getSM(editId); if(sm){sm.name=name;sm.password=pw;sm.teamId=teamId;}
       showToast('수정되었습니다','success');
     } else {
       if (db.sms.find(s=>s.name===name)) { showToast('이미 존재하는 이름입니다','error'); setBusy(false); return; }
       const newId=uid();
-      const res = await SB.post('sm_users', { id:newId, name, password:pw });
+      const res = await SB.post('sm_users', { id:newId, name, password:pw, team_id:teamId });
       const inserted = Array.isArray(res)?res[0]:res;
-      db.sms.push({ id:inserted.id||newId, name, password:pw });
+      db.sms.push({ id:inserted.id||newId, name, password:pw, teamId });
       showToast('SM이 추가되었습니다','success');
     }
-    closeModal('addSMModal'); renderAdminManage(); renderLoginPage();
+    closeModal('addSMModal'); renderAdminManage();
   } catch(e) { showToast('저장 실패: '+e.message,'error'); }
+  setBusy(false);
+}
+
+// ============================================================
+// 팀 관리 탭
+// ============================================================
+function renderAdminTeams() {
+  document.getElementById('teamListAdmin').innerHTML = db.teams.map(t =>
+    `<div class="admin-item ${adminSelectedTeamId===t.id?'active':''}">
+      <div class="admin-item-name" style="cursor:pointer" onclick="selectAdminTeam('${t.id}')">${esc(t.name)}</div>
+      <div class="admin-actions"><button class="btn btn-sm btn-secondary" onclick="openEditTeam('${t.id}')">수정</button></div>
+    </div>`
+  ).join('') || '<div style="color:var(--text-muted);font-size:13px;padding:12px">팀이 없습니다</div>';
+  if (adminSelectedTeamId) renderTeamDetail(adminSelectedTeamId);
+}
+
+async function selectAdminTeam(teamId) {
+  adminSelectedTeamId = teamId;
+  renderAdminTeams();
+  await renderTeamDetail(teamId);
+}
+
+async function renderTeamDetail(teamId) {
+  const team = db.teams.find(t=>t.id===teamId);
+  if (!team) return;
+  document.getElementById('teamDetailPanel').style.display='block';
+  document.getElementById('teamDetailTitle').textContent = team.name+' — SM 목록';
+
+  const sms = await SB.get('sm_users', `?team_id=eq.${teamId}&order=created_at`);
+  document.getElementById('teamSMList').innerHTML = sms.map(sm =>
+    `<div class="admin-item">
+      <div><div class="admin-item-name">${esc(sm.name)}</div>
+      <div class="admin-item-sub">비밀번호: ${'•'.repeat((sm.password||'').length)||'미설정'}</div></div>
+      <div class="admin-actions">
+        <button class="btn btn-sm btn-secondary" onclick="openEditTeamSMById('${sm.id}','${esc(sm.name)}','${sm.team_id}')">수정</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteSM('${sm.id}','${esc(sm.name)}')">삭제</button>
+      </div>
+    </div>`
+  ).join('') || '<div style="color:var(--text-muted);font-size:13px;padding:12px">등록된 SM이 없습니다</div>';
+
+  const cats = await SB.get('team_incentive_categories', `?team_id=eq.${teamId}&order=sort_order`);
+  document.getElementById('incentiveCatBody').innerHTML = cats.map(c =>
+    `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:8px">${esc(c.category_name)}</td>
+      <td style="padding:8px;text-align:right">${(c.unit_price||0).toLocaleString()}원</td>
+      <td style="padding:8px;text-align:center">
+        <button class="btn btn-sm ${c.is_active?'btn-primary':'btn-secondary'}" onclick="toggleIncentiveCat('${c.id}',${!c.is_active},'${teamId}')">
+          ${c.is_active?'ON':'OFF'}
+        </button>
+      </td>
+      <td style="padding:8px;text-align:center">
+        <button class="btn btn-sm btn-secondary" onclick="moveIncentiveCat('${c.id}','up','${teamId}')" style="padding:2px 6px">▲</button>
+        <button class="btn btn-sm btn-secondary" onclick="moveIncentiveCat('${c.id}','down','${teamId}')" style="padding:2px 6px">▼</button>
+      </td>
+      <td style="padding:8px;text-align:center">
+        <button class="btn btn-sm btn-secondary" onclick="openEditIncentiveCat('${c.id}','${esc(c.category_name)}',${c.unit_price},${c.sort_order})">수정</button>
+        <button class="btn btn-sm btn-danger" onclick="deleteIncentiveCat('${c.id}','${esc(c.category_name)}','${teamId}')">삭제</button>
+      </td>
+    </tr>`
+  ).join('') || `<tr><td colspan="5" style="padding:12px;text-align:center;color:var(--text-muted)">인센티브 항목이 없습니다</td></tr>`;
+
+  const ci = await SB.get('team_comment_incentive', `?team_id=eq.${teamId}`);
+  const cic = ci.length>0?ci[0]:null;
+  document.getElementById('commentIncentivePanel').innerHTML = cic
+    ? `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;padding:8px">
+        <div><div class="form-label">사용 여부</div>
+          <button class="btn ${cic.enabled?'btn-primary':'btn-secondary'}" onclick="toggleCommentIncentive('${cic.id}',${!cic.enabled},'${teamId}')">
+            ${cic.enabled?'✓ 활성화':'✗ 비활성화'}
+          </button>
+        </div>
+        <div><div class="form-label">기준 댓글수 (건)</div>
+          <input type="number" class="form-input" id="ciBase_${teamId}" value="${cic.base_count}" min="0" onchange="saveCommentIncentive('${cic.id}','${teamId}')">
+        </div>
+        <div><div class="form-label">초과 1건당 단가 (원)</div>
+          <input type="number" class="form-input" id="ciPrice_${teamId}" value="${cic.unit_price}" min="0" step="100" onchange="saveCommentIncentive('${cic.id}','${teamId}')">
+        </div>
+      </div>`
+    : `<div style="padding:12px;color:var(--text-muted);font-size:13px">
+        댓글 인센티브 설정이 없습니다.
+        <button class="btn btn-sm btn-primary" onclick="createCommentIncentive('${teamId}')">설정 추가</button>
+      </div>`;
+}
+
+function openAddTeam() {
+  document.getElementById('teamModalTitle').textContent='팀 추가';
+  document.getElementById('editTeamId').value='';
+  document.getElementById('teamName').value='';
+  openModal('teamModal');
+  setTimeout(()=>document.getElementById('teamName').focus(),100);
+}
+function openEditTeam(teamId) {
+  const t=db.teams.find(x=>x.id===teamId); if(!t) return;
+  document.getElementById('teamModalTitle').textContent='팀 수정';
+  document.getElementById('editTeamId').value=teamId;
+  document.getElementById('teamName').value=t.name;
+  openModal('teamModal');
+}
+async function saveTeam() {
+  const name=document.getElementById('teamName').value.trim();
+  const editId=document.getElementById('editTeamId').value;
+  if (!name) { showToast('팀 이름을 입력해 주세요','error'); return; }
+  setBusy(true);
+  try {
+    if (editId) {
+      await SB.patch('teams',`?id=eq.${editId}`,{name});
+      const t=db.teams.find(x=>x.id===editId); if(t) t.name=name;
+    } else {
+      const newId=uid();
+      const res=await SB.post('teams',{id:newId,name});
+      const inserted=Array.isArray(res)?res[0]:res;
+      db.teams.push({id:inserted.id||newId,name});
+    }
+    closeModal('teamModal'); renderAdminTeams();
+    const tf=document.getElementById('adminTeamFilter');
+    if(tf) tf.innerHTML='<option value="">전체 팀</option>'+db.teams.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('');
+    showToast(editId?'팀 이름이 수정되었습니다':'팀이 추가되었습니다','success');
+  } catch(e) { showToast('저장 실패: '+e.message,'error'); }
+  setBusy(false);
+}
+
+function openAddTeamSM() {
+  document.getElementById('teamSMModalTitle').textContent='SM 추가';
+  document.getElementById('editTeamSMId').value='';
+  document.getElementById('teamSMName').value='';
+  document.getElementById('teamSMPw').value='';
+  const sel=document.getElementById('teamSMTeamSel');
+  sel.innerHTML=db.teams.map(t=>`<option value="${t.id}" ${t.id===adminSelectedTeamId?'selected':''}>${esc(t.name)}</option>`).join('');
+  openModal('teamSMModal');
+  setTimeout(()=>document.getElementById('teamSMName').focus(),100);
+}
+function openEditTeamSMById(smId,smName,smTeamId) {
+  document.getElementById('teamSMModalTitle').textContent='SM 수정';
+  document.getElementById('editTeamSMId').value=smId;
+  document.getElementById('teamSMName').value=smName;
+  document.getElementById('teamSMPw').value='';
+  const sel=document.getElementById('teamSMTeamSel');
+  sel.innerHTML=db.teams.map(t=>`<option value="${t.id}" ${t.id===smTeamId?'selected':''}>${esc(t.name)}</option>`).join('');
+  openModal('teamSMModal');
+}
+async function saveTeamSM() {
+  const name=document.getElementById('teamSMName').value.trim();
+  const pw=document.getElementById('teamSMPw').value.trim();
+  const editId=document.getElementById('editTeamSMId').value;
+  const teamId=document.getElementById('teamSMTeamSel').value;
+  if(!name){showToast('이름을 입력해 주세요','error');return;}
+  if(!editId&&!pw){showToast('비밀번호를 입력해 주세요','error');return;}
+  if(!teamId){showToast('팀을 선택해 주세요','error');return;}
+  setBusy(true);
+  try {
+    if(editId){
+      const body={name,team_id:teamId}; if(pw) body.password=pw;
+      await SB.patch('sm_users',`?id=eq.${editId}`,body);
+      showToast('SM 정보가 수정되었습니다','success');
+    } else {
+      await SB.post('sm_users',{id:uid(),name,password:pw,team_id:teamId});
+      showToast('SM이 추가되었습니다','success');
+    }
+    closeModal('teamSMModal');
+    if(adminSelectedTeamId) await renderTeamDetail(adminSelectedTeamId);
+    const sms=await SB.get('sm_users','?order=created_at');
+    db.sms=sms.map(r=>({id:r.id,name:r.name,password:r.password,teamId:r.team_id}));
+  } catch(e){showToast('저장 실패: '+e.message,'error');}
+  setBusy(false);
+}
+
+function openAddIncentiveCat() {
+  if(!adminSelectedTeamId){showToast('팀을 먼저 선택해 주세요','error');return;}
+  document.getElementById('incentiveCatModalTitle').textContent='인센티브 항목 추가';
+  document.getElementById('editIncentiveCatId').value='';
+  document.getElementById('incentiveCatName').value='';
+  document.getElementById('incentiveCatPrice').value='';
+  document.getElementById('incentiveCatOrder').value='';
+  openModal('incentiveCatModal');
+  setTimeout(()=>document.getElementById('incentiveCatName').focus(),100);
+}
+function openEditIncentiveCat(catId,catName,catPrice,catOrder) {
+  document.getElementById('incentiveCatModalTitle').textContent='인센티브 항목 수정';
+  document.getElementById('editIncentiveCatId').value=catId;
+  document.getElementById('incentiveCatName').value=catName;
+  document.getElementById('incentiveCatPrice').value=catPrice;
+  document.getElementById('incentiveCatOrder').value=catOrder;
+  openModal('incentiveCatModal');
+}
+async function saveIncentiveCat() {
+  const catName=document.getElementById('incentiveCatName').value.trim();
+  const price=parseInt(document.getElementById('incentiveCatPrice').value)||0;
+  const order=parseInt(document.getElementById('incentiveCatOrder').value)||0;
+  const editId=document.getElementById('editIncentiveCatId').value;
+  if(!catName){showToast('항목명을 입력해 주세요','error');return;}
+  setBusy(true);
+  try {
+    if(editId){
+      await SB.patch('team_incentive_categories',`?id=eq.${editId}`,{category_name:catName,unit_price:price,sort_order:order});
+      showToast('수정되었습니다','success');
+    } else {
+      await SB.post('team_incentive_categories',{id:uid(),team_id:adminSelectedTeamId,category_name:catName,unit_price:price,is_active:true,sort_order:order});
+      showToast('항목이 추가되었습니다','success');
+    }
+    closeModal('incentiveCatModal');
+    await renderTeamDetail(adminSelectedTeamId);
+    if(currentUser&&currentUser.teamId===adminSelectedTeamId) await loadTeamData(adminSelectedTeamId);
+  } catch(e){showToast('저장 실패: '+e.message,'error');}
+  setBusy(false);
+}
+async function toggleIncentiveCat(catId,newActive,teamId) {
+  setBusy(true);
+  try {
+    await SB.patch('team_incentive_categories',`?id=eq.${catId}`,{is_active:newActive});
+    await renderTeamDetail(teamId);
+    if(currentUser&&currentUser.teamId===teamId) await loadTeamData(teamId);
+  } catch(e){showToast('저장 실패: '+e.message,'error');}
+  setBusy(false);
+}
+async function moveIncentiveCat(catId,dir,teamId) {
+  const cats=await SB.get('team_incentive_categories',`?team_id=eq.${teamId}&order=sort_order`);
+  const idx=cats.findIndex(c=>c.id===catId);
+  if(idx<0)return;
+  const swapIdx=dir==='up'?idx-1:idx+1;
+  if(swapIdx<0||swapIdx>=cats.length)return;
+  setBusy(true);
+  try {
+    const a=cats[idx],b=cats[swapIdx];
+    await SB.patch('team_incentive_categories',`?id=eq.${a.id}`,{sort_order:b.sort_order});
+    await SB.patch('team_incentive_categories',`?id=eq.${b.id}`,{sort_order:a.sort_order});
+    await renderTeamDetail(teamId);
+    if(currentUser&&currentUser.teamId===teamId) await loadTeamData(teamId);
+  } catch(e){showToast('저장 실패: '+e.message,'error');}
+  setBusy(false);
+}
+async function deleteIncentiveCat(catId,catName,teamId) {
+  openConfirm(`"${catName}" 항목을 삭제하시겠습니까?`, async()=>{
+    setBusy(true);
+    try {
+      await SB.del('team_incentive_categories',`?id=eq.${catId}`);
+      await renderTeamDetail(teamId);
+      if(currentUser&&currentUser.teamId===teamId) await loadTeamData(teamId);
+      showToast('삭제되었습니다');
+    } catch(e){showToast('삭제 실패: '+e.message,'error');}
+    setBusy(false);
+  });
+}
+async function toggleCommentIncentive(ciId,newEnabled,teamId) {
+  setBusy(true);
+  try {
+    await SB.patch('team_comment_incentive',`?id=eq.${ciId}`,{enabled:newEnabled});
+    await renderTeamDetail(teamId);
+    if(currentUser&&currentUser.teamId===teamId) await loadTeamData(teamId);
+  } catch(e){showToast('저장 실패: '+e.message,'error');}
+  setBusy(false);
+}
+async function saveCommentIncentive(ciId,teamId) {
+  const base=parseInt(document.getElementById(`ciBase_${teamId}`).value)||0;
+  const price=parseInt(document.getElementById(`ciPrice_${teamId}`).value)||0;
+  try {
+    await SB.patch('team_comment_incentive',`?id=eq.${ciId}`,{base_count:base,unit_price:price});
+    showToast('댓글 인센티브 설정이 저장되었습니다','success');
+    if(currentUser&&currentUser.teamId===teamId) await loadTeamData(teamId);
+  } catch(e){showToast('저장 실패: '+e.message,'error');}
+}
+async function createCommentIncentive(teamId) {
+  setBusy(true);
+  try {
+    await SB.post('team_comment_incentive',{id:uid(),team_id:teamId,enabled:true,base_count:50,unit_price:5000});
+    await renderTeamDetail(teamId);
+    showToast('댓글 인센티브 설정이 추가되었습니다','success');
+  } catch(e){showToast('추가 실패: '+e.message,'error');}
   setBusy(false);
 }
 async function deleteSM(smId, smName) {
@@ -1306,7 +1816,8 @@ function buildSupporterSheet(smName,sup) {
 }
 function buildOverviewSheet(smName,sups,month) {
   var ws={},gTotal=0,gF10=0,gF5=0,gInc=0,gHalf=0;
-  ws['A1']=cv('대전병원 '+smName+' SM — '+monthLabel(month)+' 활동 보고서',S.title);
+  var teamLabel=currentUser&&currentUser.teamName?currentUser.teamName:'365mc';
+  ws['A1']=cv(teamLabel+' '+smName+' SM — '+monthLabel(month)+' 활동 보고서',S.title);
   ws['A3']=cv('관리서포터',S.hdr);ws['B3']=cv('블로그·카페·커뮤니티',S.hdr);
   ws['C3']=cv('성공기·어플',S.hdr);ws['D3']=cv('댓글 인센티브',S.hdr);
   ws['E3']=cv('1/2 댓글수',S.hdr);ws['F3']=cv('총 지급액',S.hdr);
@@ -1326,13 +1837,28 @@ function buildOverviewSheet(smName,sups,month) {
   ws['!ref']=XLSX.utils.encode_range({s:{r:0,c:0},e:{r:sumRn,c:5}});
   return ws;
 }
+async function flushSaveTimers() {
+  Object.keys(_saveTimers).forEach(function(rowId){ clearTimeout(_saveTimers[rowId]); delete _saveTimers[rowId]; });
+  var promises=[];
+  if (currentSupId) {
+    var sup=getSup(currentUser.smId,currentMonth,currentSupId);
+    if (sup&&sup.rows) sup.rows.forEach(function(row){ promises.push(saveActivity(row,sup.id)); });
+  }
+  if (promises.length) await Promise.all(promises);
+}
 function exportSMXLSX() {
-  var smId=currentUser.smId,smName=currentUser.smName,sups=getSups(smId,currentMonth),wb=XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb,buildOverviewSheet(smName,sups,currentMonth),'전체 현황');
-  sups.forEach(function(s){XLSX.utils.book_append_sheet(wb,buildSupporterSheet(smName,s),s.name.slice(0,28));});
-  var mLabel=monthLabel(currentMonth).replace(/\d{4}년 /,function(y){return y.slice(2,4)+'년 ';});
-  XLSX.writeFile(wb,smName+' SM 보고서 '+mLabel+'.xlsx');
-  showToast('Excel 다운로드 완료','success');
+  var smId=currentUser.smId,smName=currentUser.smName;
+  var btn=event&&event.target;
+  if(btn){btn.disabled=true;btn.textContent='저장 중...';}
+  flushSaveTimers().then(function(){
+    var sups=getSups(smId,currentMonth),wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,buildOverviewSheet(smName,sups,currentMonth),'전체 현황');
+    sups.forEach(function(s){XLSX.utils.book_append_sheet(wb,buildSupporterSheet(smName,s),s.name.slice(0,28));});
+    var mLabel=monthLabel(currentMonth).replace(/\d{4}년 /,function(y){return y.slice(2,4)+'년 ';});
+    XLSX.writeFile(wb,smName+' SM 보고서 '+mLabel+'.xlsx');
+    showToast('Excel 다운로드 완료','success');
+    if(btn){btn.disabled=false;btn.textContent='📥 Excel 다운로드';}
+  });
 }
 function exportAdminXLSX() {
   var month=document.getElementById('adminMonthSel').value,wb=XLSX.utils.book_new(),allSups=[];
@@ -1400,11 +1926,14 @@ document.querySelectorAll('.modal-overlay').forEach(o => {
         showPage('adminPage');
         renderAdminPage();
         return;
-      } else if (session.type === 'sm') {
-        // 해당 SM이 아직 존재하는지 확인
-        const sm = db.sms.find(s => s.id === session.smId);
+      } else if (session.type === 'sm' && session.teamId) {
+        await loadTeamData(session.teamId);
+        const sms2 = await SB.get('sm_users', `?team_id=eq.${session.teamId}&order=created_at`);
+        const sm   = sms2.find(s => s.id === session.smId);
         if (sm) {
-          currentUser = { type:'sm', smId:sm.id, smName:sm.name };
+          await loadSMData(session.teamId);
+          const teamName = (db.teams.find(t=>t.id===session.teamId)||{}).name || session.teamName || '';
+          currentUser = { type:'sm', smId:sm.id, smName:sm.name, teamId:session.teamId, teamName };
           document.getElementById('userBadgeText').textContent = sm.name+' SM';
           document.getElementById('appHeader').style.display = 'flex';
           showPage('smPage');
