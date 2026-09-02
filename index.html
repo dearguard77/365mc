@@ -71,7 +71,7 @@ table th{background:var(--surface-2);padding:10px 12px;text-align:left;font-size
 table td{padding:7px 12px;border-bottom:1px solid var(--border);vertical-align:middle}
 table tr:last-child td{border-bottom:none}
 table tr:hover td{background:var(--bg)}
-.td-date input{width:100px}.td-category input{width:140px}.td-title input{width:220px}input.td-link{width:150px}.td-comments input{width:72px;text-align:right}
+.td-date input{width:100px}.td-category input{width:140px}.td-title input{width:220px}input.td-link{width:150px}.td-comments input{width:72px;text-align:right}.td-views input{width:80px;text-align:right}
 .td-date input,.td-category input,.td-title input,input.td-link,.td-comments input{border:1px solid transparent;border-radius:6px;padding:5px 8px;background:transparent;font-size:13px;font-family:inherit;color:var(--text-primary);transition:all .12s;-webkit-appearance:none;appearance:none;box-shadow:none}
 .td-date input:focus,.td-category input:focus,.td-title input:focus,input.td-link:focus,.td-comments input:focus{outline:none;border-color:var(--accent);background:var(--surface);box-shadow:0 0 0 3px rgba(255,107,26,.18)}
 .td-half{font-size:13px;text-align:left;min-width:60px}
@@ -208,7 +208,8 @@ table tr:hover td{background:var(--bg)}
   #actTable tbody td:nth-child(4) { order: 4; } /* 링크 */
   #actTable tbody td.td-comments { order: 5; }
   #actTable tbody td.td-half { order: 6; }
-  #actTable tbody td:last-child { order: 7; justify-content: flex-end; }
+  #actTable tbody td.td-views { order: 7; }
+  #actTable tbody td:last-child { order: 8; justify-content: flex-end; }
 
   /* 인풋 크기 */
   #actTable input:not(.half-readonly), #actTable input[type="number"] {
@@ -441,7 +442,7 @@ table tr:hover td{background:var(--bg)}
         </div>
         <div class="table-wrap">
           <table id="actTable">
-            <thead><tr><th>날짜</th><th>구분</th><th>제목</th><th>링크</th><th style="text-align:right">댓글수</th><th style="text-align:right">1/2 댓글</th><th></th></tr></thead>
+            <thead><tr><th>날짜</th><th>구분</th><th>제목</th><th>링크</th><th style="text-align:right">댓글수</th><th style="text-align:right">1/2 댓글</th><th style="text-align:right">조회수</th><th></th></tr></thead>
             <tbody id="actBody"></tbody>
           </table>
           <button class="add-row-btn" onclick="addRow()">+ 게시글 추가</button>
@@ -910,7 +911,8 @@ async function loadSMData(teamId) {
       if (!actMap[a.supporter_id]) actMap[a.supporter_id] = [];
       actMap[a.supporter_id].push({
         id: a.id, date: a.date||'', category: a.category||'',
-        title: a.title||'', link: a.link||'', comments: a.comments||''
+        title: a.title||'', link: a.link||'', comments: a.comments||'',
+        view_count: a.view_count||0
       });
     });
 
@@ -1140,6 +1142,7 @@ function renderActTable(sup) {
       <td data-label="링크"><input type="text" class="td-link" value="${esc(r.link||'')}" placeholder="https://" oninput="upRow(${i},'link',this.value)">${r.link?`<a class="link-a" href="${esc(r.link)}" target="_blank">↗</a>`:''}</td>
       <td class="td-comments" data-label="댓글수"><input type="number" min="0" step="1" value="${r.comments||''}" placeholder="0" oninput="upRow(${i},'comments',this.value)"></td>
       <td class="td-half" data-label="1/2댓글"><input type="text" value="${fmtN(half)}" readonly tabindex="-1" class="half-readonly"></td>
+      <td class="td-views" data-label="조회수"><input type="number" min="0" step="1" value="${r.view_count||''}" placeholder="0" oninput="upRow(${i},'view_count',this.value)"></td>
       <td><button class="del-btn" onclick="delRow(${i})">삭제</button></td>
     </tr>`;
   });
@@ -1168,7 +1171,8 @@ async function saveActivity(row, supporterId) {
     await SB.patch('sm_activities', `?id=eq.${row.id}`, {
       date: row.date||'', category: row.category||'',
       title: row.title||'', link: row.link||'',
-      comments: row.comments!==''&&row.comments!==null&&row.comments!==undefined ? parseFloat(row.comments)||0 : null
+      comments: row.comments!==''&&row.comments!==null&&row.comments!==undefined ? parseFloat(row.comments)||0 : null,
+      view_count: parseInt(row.view_count)||0
     });
   } catch(e) { showToast('저장 실패: '+e.message, 'error'); }
 }
@@ -1189,10 +1193,10 @@ async function addRow() {
     const newId = uid();
     const res = await SB.post('sm_activities', {
       id: newId, supporter_id: sup.id,
-      date:'', category:'', title:'', link:'', comments:null
+      date:'', category:'', title:'', link:'', comments:null, view_count:0
     });
     const inserted = Array.isArray(res) ? res[0] : res;
-    sup.rows.push({ id: inserted.id||newId, date:'', category:'', title:'', link:'', comments:'' });
+    sup.rows.push({ id: inserted.id||newId, date:'', category:'', title:'', link:'', comments:'', view_count:0 });
     renderActTable(sup); updateSummary(sup); renderGrid();
     const body = document.getElementById('actBody');
     if (body.lastElementChild) body.lastElementChild.scrollIntoView({behavior:'smooth',block:'nearest'});
@@ -1828,13 +1832,14 @@ function buildSupporterSheet(smName,sup) {
   ws['B3']=cv('서포터 이름',S.normal(XC.white));ws['C3']=cv(sup.name,S.normal(XC.white));
   ws['B4']=cv('수술 부위/집도의',S.normal(XC.white));ws['C4']=cv(sup.surgery||'',S.normal(XC.white));
   ws['B7']=cv('날짜',S.hdr);ws['C7']=cv('구분',S.hdr);ws['D7']=cv('제목',S.hdr);
-  ws['E7']=cv('링크',S.hdr);ws['F7']=cv('댓글수',S.hdr);ws['G7']=cv('1/2 댓글 수',S.hdr);
+  ws['E7']=cv('링크',S.hdr);ws['F7']=cv('댓글수',S.hdr);ws['G7']=cv('1/2 댓글 수',S.hdr);ws['H7']=cv('조회수',S.hdr);
   rows.forEach(function(r,i){
     var rn=DATA_START+i,bg=rowBgByCategory(r.category),cmt=parseFloat(r.comments)||0;
     ws['B'+rn]=cv(r.date||'',S.normal(bg));ws['C'+rn]=cv(r.category||'',S.normal(bg));
     ws['D'+rn]=cv(r.title||'',S.normal(bg));ws['E'+rn]=cv(r.link||'',S.link(bg));
     ws['F'+rn]=(r.comments!==''&&r.comments!==null&&r.comments!==undefined)?nv(cmt,S.num(bg)):cv('',S.normal(bg));
     ws['G'+rn]=nv(cmt/2,S.half);
+    ws['H'+rn]=nv(parseInt(r.view_count)||0,S.num(bg));
   });
   for(var i=rows.length;i<15;i++) ws['G'+(DATA_START+i)]=cv('',S.half);
   ws['I'+DATA_START]=cv('구분',S.hdr);ws['J'+DATA_START]=cv('건 수',S.hdr);ws['K'+DATA_START]=cv('활동비',S.hdr);
