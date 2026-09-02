@@ -688,9 +688,17 @@ const SB = {
   url: (table, qs) => SUPABASE_URL + '/rest/v1/' + table + (qs || ''),
 
   async get(table, qs) {
-    const r = await fetch(SB.url(table, qs), { headers: SB.hdr });
-    if (!r.ok) throw new Error(await r.text());
-    return r.json();
+    const url = SB.url(table, qs);
+    console.log('[SB.get]', url);
+    const r = await fetch(url, { headers: SB.hdr });
+    if (!r.ok) {
+      const txt = await r.text();
+      console.error('[SB.get 실패]', table, r.status, txt);
+      throw new Error(`${table} 조회 실패 (${r.status}): ${txt}`);
+    }
+    const data = await r.json();
+    console.log('[SB.get 성공]', table, '→', Array.isArray(data) ? data.length+'건' : data);
+    return data;
   },
   async post(table, body) {
     const r = await fetch(SB.url(table), { method:'POST', headers: SB.hdr, body: JSON.stringify(body) });
@@ -820,23 +828,43 @@ function getSM(smId) { return db.sms.find(s=>s.id===smId); }
 // 앱 시작: 팀 목록 + 공통 활동월만 로드
 async function loadAll() {
   setBusy(true);
+
+  // ── 1. teams 로드 (독립 try/catch — 실패해도 이후 진행)
   try {
     const teams = await SB.get('teams', '?order=created_at');
     db.teams = teams.map(r => ({ id: r.id, name: r.name }));
+    console.log('[loadAll] teams 로드 완료:', db.teams.length, '개', db.teams.map(t=>t.name));
+  } catch(e) {
+    console.error('[loadAll] teams 로드 실패:', e.message, e);
+    showToast('팀 목록 로드 실패: ' + e.message, 'error');
+  }
 
+  // ── 2. 활동월 로드 (독립 try/catch)
+  try {
     const months = await SB.get('sm_months', '?order=month.desc');
     db.months = months.map(r => r.month);
+    console.log('[loadAll] months 로드 완료:', db.months);
+
     const cur = todayMonth();
-    if (!db.months.includes(cur)) {
-      await SB.post('sm_months', { month: cur });
-      db.months.unshift(cur);
-    }
     currentMonth = db.months.includes(cur) ? cur : (db.months[0]||'');
+
+    // 현재 월이 없으면 추가 (실패해도 무시 — months 로딩에 영향 없음)
+    if (!db.months.includes(cur)) {
+      try {
+        await SB.post('sm_months', { month: cur });
+        db.months.unshift(cur);
+        currentMonth = cur;
+      } catch(e2) {
+        console.warn('[loadAll] sm_months INSERT 실패 (무시):', e2.message);
+      }
+    }
   } catch(e) {
-    showToast('초기 데이터 로드 실패: ' + e.message, 'error');
-    console.error(e);
+    console.error('[loadAll] months 로드 실패:', e.message, e);
+    showToast('활동월 로드 실패: ' + e.message, 'error');
   }
+
   setBusy(false);
+  console.log('[loadAll] 완료 — db.teams:', db.teams.length, 'db.months:', db.months.length);
 }
 
 // 팀 선택 후: 해당 팀 SM + 인센티브 설정 로드
@@ -915,15 +943,21 @@ function updateCatList() {
 // LOGIN
 // ============================================================
 function renderLoginPage() {
+  console.log('[renderLoginPage] db.teams:', db.teams.length, db.teams.map(t=>t.name));
   ['loginName','loginPw'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
   ['loginError','loginError2'].forEach(id => { const el=document.getElementById(id); if(el){ el.style.display='none'; el.textContent=''; }});
   document.getElementById('loginStep1').style.display='block';
   document.getElementById('loginStep2').style.display='none';
   const grid = document.getElementById('teamLoginGrid');
   if (grid) {
-    grid.innerHTML = db.teams.map(t =>
-      `<button class="sm-hint-btn" style="font-size:14px;padding:8px 16px" onclick="selectTeam('${t.id}','${esc(t.name)}')">${esc(t.name)}</button>`
-    ).join('');
+    if (db.teams.length === 0) {
+      grid.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:8px">팀 정보를 불러오는 중입니다...</div>';
+      console.warn('[renderLoginPage] db.teams가 비어있음 — Supabase 연결/teams 테이블 확인 필요');
+    } else {
+      grid.innerHTML = db.teams.map(t =>
+        `<button class="sm-hint-btn" style="font-size:14px;padding:8px 16px" onclick="selectTeam('${t.id}','${esc(t.name)}')">${esc(t.name)}</button>`
+      ).join('');
+    }
   }
 }
 
@@ -1912,7 +1946,9 @@ document.querySelectorAll('.modal-overlay').forEach(o => {
 // INIT
 // ============================================================
 (async function init() {
+  console.log('[init] 시작');
   await loadAll();
+  console.log('[init] loadAll 완료 — teams:', db.teams.length, 'months:', db.months.length);
 
   // 저장된 로그인 세션 복원 (자동 로그인)
   try {
