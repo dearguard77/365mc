@@ -1448,7 +1448,7 @@ async function saveSM() {
       showToast('수정되었습니다','success');
     } else {
       if (db.sms.find(s=>s.name===name)) { showToast('이미 존재하는 이름입니다','error'); setBusy(false); return; }
-      const res = await SB.post('sm_users', { name, password:pw, team_id:teamId });
+      const res = await SB.post('sm_users', { id:uid(), name, password:pw, team_id:teamId });
       const inserted = Array.isArray(res)?res[0]:res;
       db.sms.push({ id:inserted.id, name, password:pw, teamId });
       showToast('SM이 추가되었습니다','success');
@@ -1610,7 +1610,7 @@ async function saveTeamSM() {
       await SB.patch('sm_users',`?id=eq.${editId}`,body);
       showToast('SM 정보가 수정되었습니다','success');
     } else {
-      await SB.post('sm_users',{name,password:pw,team_id:teamId});
+      await SB.post('sm_users',{id:uid(),name,password:pw,team_id:teamId});
       showToast('SM이 추가되었습니다','success');
     }
     closeModal('teamSMModal');
