@@ -1448,10 +1448,9 @@ async function saveSM() {
       showToast('수정되었습니다','success');
     } else {
       if (db.sms.find(s=>s.name===name)) { showToast('이미 존재하는 이름입니다','error'); setBusy(false); return; }
-      const newId=uid();
-      const res = await SB.post('sm_users', { id:newId, name, password:pw, team_id:teamId });
+      const res = await SB.post('sm_users', { name, password:pw, team_id:teamId });
       const inserted = Array.isArray(res)?res[0]:res;
-      db.sms.push({ id:inserted.id||newId, name, password:pw, teamId });
+      db.sms.push({ id:inserted.id, name, password:pw, teamId });
       showToast('SM이 추가되었습니다','success');
     }
     closeModal('addSMModal'); renderAdminManage();
@@ -1561,14 +1560,15 @@ async function saveTeam() {
   try {
     if (editId) {
       await SB.patch('teams',`?id=eq.${editId}`,{name});
-      const t=db.teams.find(x=>x.id===editId); if(t) t.name=name;
     } else {
-      const newId=uid();
-      const res=await SB.post('teams',{id:newId,name});
-      const inserted=Array.isArray(res)?res[0]:res;
-      db.teams.push({id:inserted.id||newId,name});
+      // id/created_at은 DB 기본값 사용 — name만 전송
+      await SB.post('teams',{name});
     }
-    closeModal('teamModal'); renderAdminTeams();
+    // 저장 후 teams 전체 재조회 → 화면 즉시 갱신
+    const freshTeams = await SB.get('teams','?order=created_at');
+    db.teams = freshTeams.map(r=>({id:r.id,name:r.name}));
+    closeModal('teamModal');
+    renderAdminTeams();
     const tf=document.getElementById('adminTeamFilter');
     if(tf) tf.innerHTML='<option value="">전체 팀</option>'+db.teams.map(t=>`<option value="${t.id}">${esc(t.name)}</option>`).join('');
     showToast(editId?'팀 이름이 수정되었습니다':'팀이 추가되었습니다','success');
@@ -1610,7 +1610,7 @@ async function saveTeamSM() {
       await SB.patch('sm_users',`?id=eq.${editId}`,body);
       showToast('SM 정보가 수정되었습니다','success');
     } else {
-      await SB.post('sm_users',{id:uid(),name,password:pw,team_id:teamId});
+      await SB.post('sm_users',{name,password:pw,team_id:teamId});
       showToast('SM이 추가되었습니다','success');
     }
     closeModal('teamSMModal');
@@ -1651,7 +1651,7 @@ async function saveIncentiveCat() {
       await SB.patch('team_incentive_categories',`?id=eq.${editId}`,{category_name:catName,unit_price:price,sort_order:order});
       showToast('수정되었습니다','success');
     } else {
-      await SB.post('team_incentive_categories',{id:uid(),team_id:adminSelectedTeamId,category_name:catName,unit_price:price,is_active:true,sort_order:order});
+      await SB.post('team_incentive_categories',{team_id:adminSelectedTeamId,category_name:catName,unit_price:price,is_active:true,sort_order:order});
       showToast('항목이 추가되었습니다','success');
     }
     closeModal('incentiveCatModal');
@@ -1718,7 +1718,7 @@ async function saveCommentIncentive(ciId,teamId) {
 async function createCommentIncentive(teamId) {
   setBusy(true);
   try {
-    await SB.post('team_comment_incentive',{id:uid(),team_id:teamId,enabled:true,base_count:50,unit_price:5000});
+    await SB.post('team_comment_incentive',{team_id:teamId,enabled:true,base_count:50,unit_price:5000});
     await renderTeamDetail(teamId);
     showToast('댓글 인센티브 설정이 추가되었습니다','success');
   } catch(e){showToast('추가 실패: '+e.message,'error');}
