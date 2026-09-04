@@ -697,6 +697,89 @@ table tr:hover td{background:var(--bg)}
   </div>
 </div>
 
+<!-- 채널 예외(override) 설정 모달 -->
+<div class="modal-overlay" id="channelOverrideModal">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-title">채널 예외 설정</div>
+    <div style="font-size:13px;font-weight:600;color:var(--accent);margin-bottom:4px" id="ovChannelLabel"></div>
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:16px">
+      체크하지 않은 항목은 카테고리 기본값을 그대로 사용합니다.
+    </div>
+    <input type="hidden" id="ovChannelId">
+    <input type="hidden" id="ovTeamId">
+    <input type="hidden" id="ovExistingId">
+
+    <!-- 기본 활동비 -->
+    <div style="background:var(--surface-2);border-radius:8px;padding:12px;margin-bottom:10px">
+      <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-weight:600;cursor:pointer">
+        <input type="checkbox" id="ovBaseOverride" onchange="toggleOverrideSection('base')">
+        기본 활동비 별도 설정
+      </label>
+      <div id="ovBaseSection" style="display:none;padding-left:8px">
+        <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <input type="checkbox" id="ovBaseEnabled"> 이 채널에서 지급
+        </label>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input type="number" class="form-input" id="ovBasePrice" min="0" step="100"
+            placeholder="건당 금액" style="width:140px">
+          <span style="font-size:13px;color:var(--text-muted)">원 / 건</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 댓글 인센티브 -->
+    <div style="background:var(--surface-2);border-radius:8px;padding:12px;margin-bottom:10px">
+      <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-weight:600;cursor:pointer">
+        <input type="checkbox" id="ovCommentOverride" onchange="toggleOverrideSection('comment')">
+        댓글 인센티브 별도 설정
+      </label>
+      <div id="ovCommentSection" style="display:none;padding-left:8px">
+        <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <input type="checkbox" id="ovCommentEnabled" onchange="toggleOverrideCommentRule()">
+          이 채널에서 지급
+        </label>
+        <div id="ovCommentRuleWrap" style="display:none">
+          <label class="form-label">적용 댓글 규칙</label>
+          <select class="form-input" id="ovCommentRuleSel">
+            <option value="">규칙 선택</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- 조회수 인센티브 -->
+    <div style="background:var(--surface-2);border-radius:8px;padding:12px">
+      <label style="display:flex;align-items:center;gap:8px;margin-bottom:10px;font-weight:600;cursor:pointer">
+        <input type="checkbox" id="ovViewOverride" onchange="toggleOverrideSection('view')">
+        조회수 인센티브 별도 설정
+      </label>
+      <div id="ovViewSection" style="display:none;padding-left:8px">
+        <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <input type="checkbox" id="ovViewEnabled" onchange="toggleOverrideViewInputs()">
+          이 채널에서 지급
+        </label>
+        <div id="ovViewInputs" style="display:none;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div>
+            <label class="form-label">기준 조회수 초과 시</label>
+            <input type="number" class="form-input" id="ovViewThreshold" min="0" step="1000" placeholder="예: 50000">
+          </div>
+          <div>
+            <label class="form-label">건당 지급액 (원)</label>
+            <input type="number" class="form-input" id="ovViewPrice" min="0" step="1000" placeholder="예: 100000">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-actions" style="margin-top:16px">
+      <button class="btn btn-secondary" onclick="closeModal('channelOverrideModal')">취소</button>
+      <button class="btn btn-danger btn-sm" id="ovDeleteBtn" style="display:none"
+        onclick="deleteChannelOverride()">예외 삭제</button>
+      <button class="btn btn-primary" onclick="saveChannelOverride()">저장</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="confirmModal">
   <div class="modal">
     <div class="modal-title">확인</div>
@@ -1782,7 +1865,6 @@ async function renderChannelList(teamId, catId) {
   const panel = document.getElementById('channelListPanel');
   if (!panel) return;
 
-  // 해당 팀 + 카테고리의 채널 전체 조회 (is_active 무관)
   const channels = await SB.get('team_channels',
     `?team_id=eq.${teamId}&category_id=eq.${catId}&order=sort_order`);
 
@@ -1791,26 +1873,64 @@ async function renderChannelList(teamId, catId) {
     return;
   }
 
-  panel.innerHTML = `<table style="width:100%;font-size:13px;border-collapse:collapse">
+  // 이 카테고리 채널들의 override 일괄 조회
+  const chIds = channels.map(c => c.id);
+  const overrides = await SB.get('team_channel_overrides',
+    `?team_id=eq.${teamId}&channel_id=in.(${chIds.join(',')})`);
+  const overrideMap = Object.fromEntries(overrides.map(o => [o.channel_id, o]));
+
+  // 댓글 규칙 이름 조회 (override에 연결된 규칙명 표시용)
+  const commentRules = await SB.get('team_comment_rules',
+    `?team_id=eq.${teamId}&order=created_at`);
+  const crMap = Object.fromEntries(commentRules.map(r => [r.id, r.name]));
+
+  function overrideCell(ov, enabledKey, ruleKey, priceKey) {
+    if (!ov) return '<span style="color:var(--text-muted);font-size:11px">기본값</span>';
+    const en = ov[enabledKey];
+    if (en === null || en === undefined)
+      return '<span style="color:var(--text-muted);font-size:11px">기본값</span>';
+    if (en === false)
+      return '<span style="color:#ef4444;font-size:11px">OFF 고정</span>';
+    // en === true
+    if (ruleKey && ov[ruleKey])
+      return `<span style="color:var(--accent);font-size:11px">별도: ${esc(crMap[ov[ruleKey]]||'?')}</span>`;
+    if (priceKey && ov[priceKey] != null)
+      return `<span style="color:var(--accent);font-size:11px">별도: ${(ov[priceKey]||0).toLocaleString()}원</span>`;
+    return '<span style="color:var(--accent);font-size:11px">ON 고정</span>';
+  }
+
+  panel.innerHTML = `<table style="width:100%;font-size:12px;border-collapse:collapse">
     <thead><tr style="background:var(--surface-2)">
       <th style="padding:8px;text-align:left">채널명</th>
       <th style="padding:8px;text-align:center">사용</th>
+      <th style="padding:8px;text-align:center">기본활동비</th>
+      <th style="padding:8px;text-align:center">댓글</th>
+      <th style="padding:8px;text-align:center">조회수</th>
       <th style="padding:8px"></th>
     </tr></thead>
-    <tbody>${channels.map(c => `
-      <tr style="border-bottom:1px solid var(--border)">
-        <td style="padding:8px">${esc(c.name)}</td>
+    <tbody>${channels.map(c => {
+      const ov = overrideMap[c.id] || null;
+      return `<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:8px;font-weight:500">${esc(c.name)}</td>
         <td style="padding:8px;text-align:center">
           <button class="btn btn-sm ${c.is_active?'btn-primary':'btn-secondary'}"
             onclick="toggleChannel('${c.id}',${!c.is_active},'${teamId}','${catId}')">
             ${c.is_active?'ON':'OFF'}
           </button>
         </td>
-        <td style="padding:8px;text-align:right">
+        <td style="padding:8px;text-align:center">${overrideCell(ov,'base_enabled',null,'base_price')}</td>
+        <td style="padding:8px;text-align:center">${overrideCell(ov,'comment_enabled','comment_rule_id',null)}</td>
+        <td style="padding:8px;text-align:center">${overrideCell(ov,'view_enabled',null,'view_price')}</td>
+        <td style="padding:8px;text-align:right;white-space:nowrap">
           <button class="btn btn-sm btn-secondary"
             onclick="openEditChannel('${c.id}','${esc(c.name)}','${catId}')">수정</button>
+          <button class="btn btn-sm ${ov?'btn-primary':'btn-secondary'}"
+            onclick="openChannelOverrideModal('${c.id}','${esc(c.name)}','${teamId}')">
+            ${ov?'예외 수정':'예외 설정'}
+          </button>
         </td>
-      </tr>`).join('')}
+      </tr>`;
+    }).join('')}
     </tbody>
   </table>`;
 }
@@ -1878,6 +1998,179 @@ async function toggleChannel(channelId, newActive, teamId, catId) {
     if (currentUser && currentUser.teamId === teamId) await loadTeamData(teamId);
   } catch(e) { showToast('저장 실패: '+e.message,'error'); }
   setBusy(false);
+}
+
+// ============================================================
+// 채널 예외(Override) 설정
+// ============================================================
+
+// 섹션 토글 헬퍼
+function toggleOverrideSection(type) {
+  const checked = document.getElementById(`ov${type.charAt(0).toUpperCase()+type.slice(1)}Override`).checked;
+  document.getElementById(`ov${type.charAt(0).toUpperCase()+type.slice(1)}Section`).style.display = checked ? 'block' : 'none';
+}
+function toggleOverrideCommentRule() {
+  const on = document.getElementById('ovCommentEnabled').checked;
+  document.getElementById('ovCommentRuleWrap').style.display = on ? 'block' : 'none';
+}
+function toggleOverrideViewInputs() {
+  const on = document.getElementById('ovViewEnabled').checked;
+  document.getElementById('ovViewInputs').style.display = on ? 'grid' : 'none';
+}
+
+// override 모달 열기
+async function openChannelOverrideModal(channelId, channelName, teamId) {
+  document.getElementById('ovChannelId').value   = channelId;
+  document.getElementById('ovTeamId').value      = teamId;
+  document.getElementById('ovExistingId').value  = '';
+  document.getElementById('ovChannelLabel').textContent = channelName;
+
+  // 현재 팀의 댓글 규칙 드롭다운 채우기
+  const commentRules = await SB.get('team_comment_rules',
+    `?team_id=eq.${teamId}&order=created_at`);
+  document.getElementById('ovCommentRuleSel').innerHTML =
+    '<option value="">규칙 선택</option>' +
+    commentRules.map(r => `<option value="${r.id}">${esc(r.name)}</option>`).join('');
+
+  // 기존 override 조회
+  const existing = await SB.get('team_channel_overrides',
+    `?team_id=eq.${teamId}&channel_id=eq.${channelId}`);
+  const ov = existing.length ? existing[0] : null;
+
+  // 모달 초기화
+  ['Base','Comment','View'].forEach(t => {
+    document.getElementById(`ov${t}Override`).checked = false;
+    document.getElementById(`ov${t}Section`).style.display = 'none';
+  });
+
+  if (ov) {
+    document.getElementById('ovExistingId').value = ov.id;
+    document.getElementById('ovDeleteBtn').style.display = 'inline-flex';
+
+    // 기본 활동비
+    if (ov.base_enabled !== null && ov.base_enabled !== undefined) {
+      document.getElementById('ovBaseOverride').checked = true;
+      document.getElementById('ovBaseSection').style.display = 'block';
+      document.getElementById('ovBaseEnabled').checked = !!ov.base_enabled;
+      document.getElementById('ovBasePrice').value = ov.base_price ?? '';
+    }
+
+    // 댓글 인센티브
+    if (ov.comment_enabled !== null && ov.comment_enabled !== undefined) {
+      document.getElementById('ovCommentOverride').checked = true;
+      document.getElementById('ovCommentSection').style.display = 'block';
+      document.getElementById('ovCommentEnabled').checked = !!ov.comment_enabled;
+      document.getElementById('ovCommentRuleWrap').style.display = ov.comment_enabled ? 'block' : 'none';
+      document.getElementById('ovCommentRuleSel').value = ov.comment_rule_id || '';
+    }
+
+    // 조회수 인센티브
+    if (ov.view_enabled !== null && ov.view_enabled !== undefined) {
+      document.getElementById('ovViewOverride').checked = true;
+      document.getElementById('ovViewSection').style.display = 'block';
+      document.getElementById('ovViewEnabled').checked = !!ov.view_enabled;
+      document.getElementById('ovViewInputs').style.display = ov.view_enabled ? 'grid' : 'none';
+      document.getElementById('ovViewThreshold').value = ov.view_threshold ?? '';
+      document.getElementById('ovViewPrice').value = ov.view_price ?? '';
+    }
+  } else {
+    document.getElementById('ovDeleteBtn').style.display = 'none';
+    // 초기값 세팅
+    document.getElementById('ovBaseEnabled').checked = true;
+    document.getElementById('ovBasePrice').value = '';
+    document.getElementById('ovCommentEnabled').checked = false;
+    document.getElementById('ovCommentRuleWrap').style.display = 'none';
+    document.getElementById('ovViewEnabled').checked = false;
+    document.getElementById('ovViewInputs').style.display = 'none';
+  }
+
+  openModal('channelOverrideModal');
+}
+
+// override 저장
+async function saveChannelOverride() {
+  const channelId  = document.getElementById('ovChannelId').value;
+  const teamId     = document.getElementById('ovTeamId').value;
+  const existingId = document.getElementById('ovExistingId').value;
+
+  // 각 섹션 체크 여부 → NULL vs 실제값 결정
+  const baseOv    = document.getElementById('ovBaseOverride').checked;
+  const commentOv = document.getElementById('ovCommentOverride').checked;
+  const viewOv    = document.getElementById('ovViewOverride').checked;
+
+  // 모든 섹션이 unchecked = 모두 카테고리 기본값 → override 행 삭제
+  if (!baseOv && !commentOv && !viewOv) {
+    if (existingId) {
+      setBusy(true);
+      try {
+        await SB.del('team_channel_overrides', `?id=eq.${existingId}`);
+        showToast('예외 설정이 삭제되었습니다 (카테고리 기본값 사용)','success');
+      } catch(e) { showToast('삭제 실패: '+e.message,'error'); }
+      setBusy(false);
+    } else {
+      showToast('변경 사항이 없습니다','success');
+    }
+    closeModal('channelOverrideModal');
+    await renderChannelList(teamId, adminSelectedCatId);
+    return;
+  }
+
+  // 필드별 값 구성 (NULL = 카테고리 기본값 상속)
+  const body = {
+    // 기본 활동비
+    base_enabled: baseOv ? document.getElementById('ovBaseEnabled').checked : null,
+    base_price:   baseOv && document.getElementById('ovBaseEnabled').checked
+      ? (parseInt(document.getElementById('ovBasePrice').value) || 0) : null,
+
+    // 댓글 인센티브
+    comment_enabled: commentOv ? document.getElementById('ovCommentEnabled').checked : null,
+    comment_rule_id: (commentOv && document.getElementById('ovCommentEnabled').checked)
+      ? (document.getElementById('ovCommentRuleSel').value || null) : null,
+
+    // 조회수 인센티브
+    view_enabled:    viewOv ? document.getElementById('ovViewEnabled').checked : null,
+    view_threshold:  (viewOv && document.getElementById('ovViewEnabled').checked)
+      ? (parseInt(document.getElementById('ovViewThreshold').value) || 0) : null,
+    view_price:      (viewOv && document.getElementById('ovViewEnabled').checked)
+      ? (parseInt(document.getElementById('ovViewPrice').value) || 0) : null,
+  };
+
+  // 댓글 ON인데 규칙 미선택 검증
+  if (body.comment_enabled === true && !body.comment_rule_id) {
+    showToast('댓글 규칙을 선택해 주세요','error'); return;
+  }
+
+  setBusy(true);
+  try {
+    if (existingId) {
+      await SB.patch('team_channel_overrides', `?id=eq.${existingId}`, body);
+      showToast('예외 설정이 수정되었습니다','success');
+    } else {
+      await SB.post('team_channel_overrides',
+        { ...body, team_id: teamId, channel_id: channelId });
+      showToast('예외 설정이 저장되었습니다','success');
+    }
+    closeModal('channelOverrideModal');
+    await renderChannelList(teamId, adminSelectedCatId);
+  } catch(e) { showToast('저장 실패: '+e.message,'error'); }
+  setBusy(false);
+}
+
+// override 삭제 (예외 행 전체 삭제 = 카테고리 기본값으로 복귀)
+async function deleteChannelOverride() {
+  const existingId = document.getElementById('ovExistingId').value;
+  const teamId     = document.getElementById('ovTeamId').value;
+  if (!existingId) { closeModal('channelOverrideModal'); return; }
+  openConfirm('이 채널의 예외 설정을 모두 삭제하고\n카테고리 기본값으로 되돌리겠습니까?', async () => {
+    setBusy(true);
+    try {
+      await SB.del('team_channel_overrides', `?id=eq.${existingId}`);
+      showToast('예외 설정이 삭제되었습니다','success');
+      closeModal('channelOverrideModal');
+      await renderChannelList(teamId, adminSelectedCatId);
+    } catch(e) { showToast('삭제 실패: '+e.message,'error'); }
+    setBusy(false);
+  });
 }
 function renderAdminTeams() {
   document.getElementById('teamListAdmin').innerHTML = db.teams.map(t =>
