@@ -529,6 +529,8 @@ table tr:hover td{background:var(--bg)}
         <div class="admin-panel-body" id="teamListAdmin"></div>
       </div>
       <div id="teamDetailPanel" style="display:none">
+
+        <!-- SM 관리 -->
         <div class="admin-panel" style="margin-bottom:20px">
           <div class="admin-panel-header">
             <span id="teamDetailTitle">팀 SM 관리</span>
@@ -536,26 +538,24 @@ table tr:hover td{background:var(--bg)}
           </div>
           <div class="admin-panel-body" id="teamSMList"></div>
         </div>
+
+        <!-- ★ 신규: 댓글 규칙 관리 -->
         <div class="admin-panel" style="margin-bottom:20px">
-          <div class="admin-panel-header">&#128181; 인센티브 항목
-            <button class="btn btn-primary btn-sm" onclick="openAddIncentiveCat()">+ 항목 추가</button>
+          <div class="admin-panel-header">
+            &#128172; 댓글 규칙 관리
+            <button class="btn btn-primary btn-sm" onclick="openAddCommentRule()">+ 규칙 추가</button>
           </div>
-          <div class="admin-panel-body">
-            <table style="width:100%;font-size:13px;border-collapse:collapse" id="incentiveCatTable">
-              <thead><tr style="background:var(--surface-2)">
-                <th style="padding:8px;text-align:left">항목명</th>
-                <th style="padding:8px;text-align:right">단가</th>
-                <th style="padding:8px;text-align:center">사용</th>
-                <th style="padding:8px;text-align:center">순서</th>
-                <th style="padding:8px"></th>
-              </tr></thead>
-              <tbody id="incentiveCatBody"></tbody>
-            </table>
+          <div class="admin-panel-body" id="commentRuleList">
+            <div style="color:var(--text-muted);font-size:13px">팀을 선택하면 표시됩니다</div>
           </div>
         </div>
-        <div class="admin-panel">
-          <div class="admin-panel-header">&#128172; 댓글 인센티브 설정</div>
-          <div class="admin-panel-body" id="commentIncentivePanel"></div>
+
+        <!-- ★ 신규: 카테고리별 지급 설정 (메인) -->
+        <div class="admin-panel" style="margin-bottom:20px">
+          <div class="admin-panel-header">&#127775; 카테고리별 지급 설정</div>
+          <div class="admin-panel-body" id="categoryRuleList">
+            <div style="color:var(--text-muted);font-size:13px">팀을 선택하면 표시됩니다</div>
+          </div>
         </div>
 
         <!-- 미등록 채널 패널 -->
@@ -567,18 +567,49 @@ table tr:hover td{background:var(--bg)}
           <div class="admin-panel-body" id="unregisteredChannelList"></div>
         </div>
 
-        <!-- 채널 관리 패널 -->
-        <div class="admin-panel" style="margin-top:20px">
+        <!-- 채널 관리 -->
+        <div class="admin-panel" style="margin-bottom:20px">
           <div class="admin-panel-header">&#128241; 채널 관리
             <button class="btn btn-primary btn-sm" onclick="openAddChannel()">+ 채널 추가</button>
           </div>
           <div class="admin-panel-body">
-            <!-- 카테고리 탭 버튼 -->
             <div id="channelCatTabs" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px"></div>
-            <!-- 선택된 카테고리의 채널 목록 -->
             <div id="channelListPanel"></div>
           </div>
         </div>
+
+        <!-- 레거시 인센티브 (접힘 상태) -->
+        <details style="margin-bottom:20px">
+          <summary style="cursor:pointer;padding:10px 12px;background:var(--surface-2);border-radius:8px;font-size:13px;color:var(--text-muted);list-style:none;display:flex;align-items:center;gap:8px">
+            <span>&#9654;</span>
+            <span>기존 설정 (레거시 — 참조용, 신규 계산에 미사용)</span>
+          </summary>
+          <div style="margin-top:8px">
+            <div class="admin-panel" style="margin-bottom:12px;opacity:0.7">
+              <div class="admin-panel-header" style="font-size:12px">
+                &#128181; 인센티브 항목 (레거시)
+                <button class="btn btn-sm" style="font-size:11px;opacity:0.6" onclick="openAddIncentiveCat()">+ 항목 추가</button>
+              </div>
+              <div class="admin-panel-body">
+                <table style="width:100%;font-size:12px;border-collapse:collapse" id="incentiveCatTable">
+                  <thead><tr style="background:var(--surface-2)">
+                    <th style="padding:6px 8px;text-align:left">항목명</th>
+                    <th style="padding:6px 8px;text-align:right">단가</th>
+                    <th style="padding:6px 8px;text-align:center">사용</th>
+                    <th style="padding:6px 8px;text-align:center">순서</th>
+                    <th style="padding:6px 8px"></th>
+                  </tr></thead>
+                  <tbody id="incentiveCatBody"></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="admin-panel" style="opacity:0.7">
+              <div class="admin-panel-header" style="font-size:12px">&#128172; 댓글 인센티브 (레거시)</div>
+              <div class="admin-panel-body" id="commentIncentivePanel"></div>
+            </div>
+          </div>
+        </details>
+
       </div>
     </div>
   </div>
@@ -698,6 +729,93 @@ table tr:hover td{background:var(--bg)}
 </div>
 
 <!-- 채널 예외(override) 설정 모달 -->
+<!-- 댓글 규칙 추가/수정 모달 -->
+<div class="modal-overlay" id="commentRuleModal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-title" id="commentRuleModalTitle">댓글 규칙 추가</div>
+    <input type="hidden" id="editCommentRuleId">
+    <div class="form-group"><label class="form-label">규칙명 *</label>
+      <input type="text" class="form-input" id="crName" placeholder="예: 기본 댓글 규칙"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-group"><label class="form-label">기준 댓글수 *</label>
+        <input type="number" class="form-input" id="crThreshold" min="0" placeholder="예: 50"></div>
+      <div class="form-group"><label class="form-label">인정 단위</label>
+        <select class="form-input" id="crDivisor">
+          <option value="1">1/1 (댓글수 그대로)</option>
+          <option value="2" selected>1/2 (절반)</option>
+          <option value="4">1/4</option>
+          <option value="10">1/10</option>
+        </select></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="form-group"><label class="form-label">초과분 건당 단가 *</label>
+        <input type="number" class="form-input" id="crPrice" min="0" step="100" placeholder="예: 5000"></div>
+      <div class="form-group"><label class="form-label">계산 방식</label>
+        <select class="form-input" id="crCalcMode">
+          <option value="supporter_total">서포터 전체 합산</option>
+          <option value="per_activity">활동 건별</option>
+        </select></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label" style="display:flex;align-items:center;gap:8px">
+        <input type="checkbox" id="crHasCap" onchange="toggleCapInput()"> 최대 인정 건수 제한
+      </label>
+      <input type="number" class="form-input" id="crMaxCount" min="1" placeholder="예: 100" style="margin-top:6px;display:none">
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-secondary" onclick="closeModal('commentRuleModal')">취소</button>
+      <button class="btn btn-primary" onclick="saveCommentRule()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 카테고리별 지급 설정 모달 -->
+<div class="modal-overlay" id="categoryRuleModal">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-title" id="categoryRuleModalTitle">카테고리 지급 설정</div>
+    <input type="hidden" id="editCategoryRuleId">
+    <input type="hidden" id="editCategoryRuleTeamId">
+    <input type="hidden" id="editCategoryRuleCategory">
+    <div style="font-size:13px;font-weight:600;color:var(--accent);margin-bottom:16px" id="crCategoryLabel"></div>
+    <div style="background:var(--surface-2);border-radius:8px;padding:12px;margin-bottom:12px">
+      <div style="font-weight:600;margin-bottom:8px">기본 활동비</div>
+      <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <input type="checkbox" id="crBaseEnabled"> 지급
+      </label>
+      <div style="display:flex;align-items:center;gap:8px">
+        <input type="number" class="form-input" id="crBasePrice" min="0" step="100" placeholder="건당 금액" style="width:140px">
+        <span style="font-size:13px;color:var(--text-muted)">원 / 건</span>
+      </div>
+    </div>
+    <div style="background:var(--surface-2);border-radius:8px;padding:12px;margin-bottom:12px">
+      <div style="font-weight:600;margin-bottom:8px">댓글 인센티브</div>
+      <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <input type="checkbox" id="crCommentEnabled" onchange="toggleCommentRuleSel()"> 지급
+      </label>
+      <div id="crCommentRuleSelWrap" style="display:none">
+        <label class="form-label">적용 댓글 규칙</label>
+        <select class="form-input" id="crCommentRuleSel"><option value="">규칙 선택</option></select>
+      </div>
+    </div>
+    <div style="background:var(--surface-2);border-radius:8px;padding:12px">
+      <div style="font-weight:600;margin-bottom:8px">조회수 인센티브</div>
+      <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <input type="checkbox" id="crViewEnabled" onchange="toggleViewInputs()"> 지급
+      </label>
+      <div id="crViewInputsWrap" style="display:none;grid-template-columns:1fr 1fr;gap:8px">
+        <div><label class="form-label">기준 조회수 초과 시</label>
+          <input type="number" class="form-input" id="crViewThreshold" min="0" step="1000" placeholder="예: 50000"></div>
+        <div><label class="form-label">건당 지급액 (원)</label>
+          <input type="number" class="form-input" id="crViewPrice" min="0" step="1000" placeholder="예: 100000"></div>
+      </div>
+    </div>
+    <div class="form-actions" style="margin-top:16px">
+      <button class="btn btn-secondary" onclick="closeModal('categoryRuleModal')">취소</button>
+      <button class="btn btn-primary" onclick="saveCategoryRule()">저장</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="channelOverrideModal">
   <div class="modal" style="max-width:520px">
     <div class="modal-title">채널 예외 설정</div>
@@ -1990,6 +2108,357 @@ async function saveChannel() {
   setBusy(false);
 }
 
+// ============================================================
+// 신규 인센티브 규칙 (team_comment_rules + team_category_rules)
+// ============================================================
+
+async function renderCommentRules(teamId) {
+  const el = document.getElementById('commentRuleList');
+  if (!el) return;
+  const rules = await SB.get('team_comment_rules', `?team_id=eq.${teamId}&order=created_at`);
+  if (!rules.length) {
+    el.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:8px">등록된 댓글 규칙이 없습니다</div>';
+    return;
+  }
+  const divLabel = d => d===1?'1/1':d===2?'1/2':d===4?'1/4':d===10?'1/10':`1/${d}`;
+  const modeLabel = m => m==='per_activity'?'활동 건별':'서포터 전체 합산';
+  el.innerHTML = `<table style="width:100%;font-size:12px;border-collapse:collapse">
+    <thead><tr style="background:var(--surface-2)">
+      <th style="padding:6px 8px;text-align:left">규칙명</th>
+      <th style="padding:6px 8px;text-align:right">기준</th>
+      <th style="padding:6px 8px;text-align:center">인정단위</th>
+      <th style="padding:6px 8px;text-align:right">단가</th>
+      <th style="padding:6px 8px;text-align:center">상한</th>
+      <th style="padding:6px 8px;text-align:center">방식</th>
+      <th style="padding:6px 8px"></th>
+    </tr></thead>
+    <tbody>${rules.map(r=>`
+      <tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:6px 8px;font-weight:600">${esc(r.name)}</td>
+        <td style="padding:6px 8px;text-align:right">${r.threshold}건 초과</td>
+        <td style="padding:6px 8px;text-align:center">${divLabel(r.divisor||2)}</td>
+        <td style="padding:6px 8px;text-align:right">${(r.price||0).toLocaleString()}원</td>
+        <td style="padding:6px 8px;text-align:center">${r.has_cap?`최대 ${r.max_count}건`:'없음'}</td>
+        <td style="padding:6px 8px;text-align:center;font-size:11px">${modeLabel(r.calculation_mode||'supporter_total')}</td>
+        <td style="padding:6px 8px;text-align:right">
+          <button class="btn btn-sm btn-secondary" onclick="openEditCommentRule('${r.id}')">수정</button>
+        </td>
+      </tr>`).join('')}
+    </tbody></table>`;
+}
+
+async function renderCategoryRules(teamId) {
+  const el = document.getElementById('categoryRuleList');
+  if (!el) return;
+  const rules = await SB.get('team_category_rules', `?team_id=eq.${teamId}&order=created_at`);
+  const commentRules = await SB.get('team_comment_rules', `?team_id=eq.${teamId}&order=created_at`);
+  const crMap = Object.fromEntries(commentRules.map(r=>[r.id,r.name]));
+  const allCats = db.masterCategories || [];
+  if (!allCats.length) {
+    el.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:8px">카테고리가 없습니다</div>';
+    return;
+  }
+  el.innerHTML = `<table style="width:100%;font-size:12px;border-collapse:collapse">
+    <thead><tr style="background:var(--surface-2)">
+      <th style="padding:6px 8px;text-align:left">카테고리</th>
+      <th style="padding:6px 8px;text-align:center">활동 건당 지급</th>
+      <th style="padding:6px 8px;text-align:center">댓글 인센</th>
+      <th style="padding:6px 8px;text-align:center">조회수 인센</th>
+      <th style="padding:6px 8px"></th>
+    </tr></thead>
+    <tbody>${allCats.map(cat=>{
+      const rule = rules.find(r=>r.category_id===cat.id);
+      return `<tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:6px 8px;font-weight:600">${esc(cat.name)}</td>
+        <td style="padding:6px 8px;text-align:center">
+          ${rule&&rule.base_enabled
+            ?`<span style="color:var(--accent);font-weight:600">${(rule.base_price||0).toLocaleString()}원</span>`
+            :'<span style="color:var(--text-muted)">없음</span>'}
+        </td>
+        <td style="padding:6px 8px;text-align:center;font-size:11px">
+          ${rule&&rule.comment_enabled&&rule.comment_rule_id
+            ?`<span style="color:var(--accent)">${esc(crMap[rule.comment_rule_id]||'?')}</span>`
+            :'<span style="color:var(--text-muted)">없음</span>'}
+        </td>
+        <td style="padding:6px 8px;text-align:center;font-size:11px">
+          ${rule&&rule.view_enabled
+            ?`<span style="color:var(--accent)">${(rule.view_threshold||0).toLocaleString()}회↑ ${(rule.view_price||0).toLocaleString()}원</span>`
+            :'<span style="color:var(--text-muted)">없음</span>'}
+        </td>
+        <td style="padding:6px 8px;text-align:right">
+          <button class="btn btn-sm btn-secondary"
+            onclick="openCategoryRuleModal('${cat.id}','${esc(cat.name)}','${teamId}','${rule?rule.id:''}')">
+            ${rule?'수정':'설정'}
+          </button>
+        </td>
+      </tr>`;
+    }).join('')}
+    </tbody></table>`;
+}
+
+async function renderIncentiveRules(teamId) {
+  await renderCommentRules(teamId);
+  await renderCategoryRules(teamId);
+}
+
+// 댓글 규칙 모달 헬퍼
+function toggleCapInput() {
+  const cap = document.getElementById('crHasCap').checked;
+  document.getElementById('crMaxCount').style.display = cap?'block':'none';
+  if (!cap) document.getElementById('crMaxCount').value='';
+}
+function toggleCommentRuleSel() {
+  const on = document.getElementById('crCommentEnabled').checked;
+  document.getElementById('crCommentRuleSelWrap').style.display = on?'block':'none';
+}
+function toggleViewInputs() {
+  const on = document.getElementById('crViewEnabled').checked;
+  document.getElementById('crViewInputsWrap').style.display = on?'grid':'none';
+}
+
+function openAddCommentRule() {
+  if (!adminSelectedTeamId){showToast('팀을 먼저 선택해 주세요','error');return;}
+  const modal = document.getElementById('commentRuleModal');
+  if (!modal){showToast('댓글 규칙 모달이 없습니다. 페이지를 새로고침해 주세요','error');return;}
+  document.getElementById('commentRuleModalTitle').textContent='댓글 규칙 추가';
+  document.getElementById('editCommentRuleId').value='';
+  document.getElementById('crName').value='';
+  document.getElementById('crThreshold').value='50';
+  document.getElementById('crDivisor').value='2';
+  document.getElementById('crPrice').value='';
+  document.getElementById('crCalcMode').value='supporter_total';
+  document.getElementById('crHasCap').checked=false;
+  document.getElementById('crMaxCount').value='';
+  document.getElementById('crMaxCount').style.display='none';
+  openModal('commentRuleModal');
+  setTimeout(()=>document.getElementById('crName').focus(),100);
+}
+async function openEditCommentRule(ruleId) {
+  const rules = await SB.get('team_comment_rules',`?id=eq.${ruleId}`);
+  if(!rules.length)return;
+  const r=rules[0];
+  document.getElementById('commentRuleModalTitle').textContent='댓글 규칙 수정';
+  document.getElementById('editCommentRuleId').value=r.id;
+  document.getElementById('crName').value=r.name;
+  document.getElementById('crThreshold').value=r.threshold;
+  document.getElementById('crDivisor').value=String(r.divisor||2);
+  document.getElementById('crPrice').value=r.price;
+  document.getElementById('crCalcMode').value=r.calculation_mode||'supporter_total';
+  document.getElementById('crHasCap').checked=r.has_cap;
+  document.getElementById('crMaxCount').value=r.max_count||'';
+  document.getElementById('crMaxCount').style.display=r.has_cap?'block':'none';
+  openModal('commentRuleModal');
+}
+async function saveCommentRule() {
+  const name     =document.getElementById('crName').value.trim();
+  const threshold=parseFloat(document.getElementById('crThreshold').value)||0;
+  const divisor  =parseInt(document.getElementById('crDivisor').value)||2;
+  const price    =parseInt(document.getElementById('crPrice').value)||0;
+  const calcMode =document.getElementById('crCalcMode').value;
+  const hasCap   =document.getElementById('crHasCap').checked;
+  const maxCount =hasCap?(parseInt(document.getElementById('crMaxCount').value)||null):null;
+  const editId   =document.getElementById('editCommentRuleId').value;
+  if(!name){showToast('규칙명을 입력해 주세요','error');return;}
+  if(hasCap&&!maxCount){showToast('최대 인정 건수를 입력해 주세요','error');return;}
+  setBusy(true);
+  try {
+    const body={name,threshold,divisor,price,calculation_mode:calcMode,has_cap:hasCap,max_count:maxCount};
+    if(editId){await SB.patch('team_comment_rules',`?id=eq.${editId}`,body);showToast('수정되었습니다','success');}
+    else{await SB.post('team_comment_rules',{...body,team_id:adminSelectedTeamId});showToast('추가되었습니다','success');}
+    closeModal('commentRuleModal');
+    await renderIncentiveRules(adminSelectedTeamId);
+  }catch(e){showToast('저장 실패: '+e.message,'error');}
+  setBusy(false);
+}
+
+async function openCategoryRuleModal(catId,catName,teamId,ruleId) {
+  document.getElementById('categoryRuleModalTitle').textContent=`${catName} — 지급 설정`;
+  document.getElementById('editCategoryRuleId').value=ruleId;
+  document.getElementById('editCategoryRuleTeamId').value=teamId;
+  document.getElementById('editCategoryRuleCategory').value=catId;
+  document.getElementById('crCategoryLabel').textContent=`카테고리: ${catName}`;
+  const commentRules=await SB.get('team_comment_rules',`?team_id=eq.${teamId}&order=created_at`);
+  document.getElementById('crCommentRuleSel').innerHTML=
+    '<option value="">규칙 선택</option>'+
+    commentRules.map(r=>`<option value="${r.id}">${esc(r.name)}</option>`).join('');
+  if(ruleId){
+    const rows=await SB.get('team_category_rules',`?id=eq.${ruleId}`);
+    if(rows.length){
+      const r=rows[0];
+      document.getElementById('crBaseEnabled').checked=r.base_enabled;
+      document.getElementById('crBasePrice').value=r.base_price||'';
+      document.getElementById('crCommentEnabled').checked=r.comment_enabled;
+      document.getElementById('crCommentRuleSelWrap').style.display=r.comment_enabled?'block':'none';
+      document.getElementById('crCommentRuleSel').value=r.comment_rule_id||'';
+      document.getElementById('crViewEnabled').checked=r.view_enabled;
+      document.getElementById('crViewInputsWrap').style.display=r.view_enabled?'grid':'none';
+      document.getElementById('crViewThreshold').value=r.view_threshold||'';
+      document.getElementById('crViewPrice').value=r.view_price||'';
+    }
+  }else{
+    document.getElementById('crBaseEnabled').checked=true;
+    document.getElementById('crBasePrice').value='';
+    document.getElementById('crCommentEnabled').checked=false;
+    document.getElementById('crCommentRuleSelWrap').style.display='none';
+    document.getElementById('crCommentRuleSel').value='';
+    document.getElementById('crViewEnabled').checked=false;
+    document.getElementById('crViewInputsWrap').style.display='none';
+    document.getElementById('crViewThreshold').value='';
+    document.getElementById('crViewPrice').value='';
+  }
+  openModal('categoryRuleModal');
+}
+async function saveCategoryRule() {
+  const ruleId   =document.getElementById('editCategoryRuleId').value;
+  const teamId   =document.getElementById('editCategoryRuleTeamId').value;
+  const catId    =document.getElementById('editCategoryRuleCategory').value;
+  const baseEnabled =document.getElementById('crBaseEnabled').checked;
+  const basePrice   =parseInt(document.getElementById('crBasePrice').value)||0;
+  const commentEnabled=document.getElementById('crCommentEnabled').checked;
+  const commentRuleId =document.getElementById('crCommentRuleSel').value||null;
+  const viewEnabled   =document.getElementById('crViewEnabled').checked;
+  const viewThreshold =parseInt(document.getElementById('crViewThreshold').value)||0;
+  const viewPrice     =parseInt(document.getElementById('crViewPrice').value)||0;
+  if(commentEnabled&&!commentRuleId){showToast('댓글 규칙을 선택해 주세요','error');return;}
+  setBusy(true);
+  try{
+    const body={base_enabled:baseEnabled,base_price:basePrice,
+      comment_enabled:commentEnabled,comment_rule_id:commentRuleId,
+      view_enabled:viewEnabled,view_threshold:viewThreshold,view_price:viewPrice};
+    if(ruleId){await SB.patch('team_category_rules',`?id=eq.${ruleId}`,body);showToast('저장되었습니다','success');}
+    else{await SB.post('team_category_rules',{...body,team_id:teamId,category_id:catId});showToast('추가되었습니다','success');}
+    closeModal('categoryRuleModal');
+    await renderIncentiveRules(teamId);
+  }catch(e){showToast('저장 실패: '+e.message,'error');}
+  setBusy(false);
+}
+
+// ============================================================
+// 채널 예외(Override) 설정
+// ============================================================
+function toggleOverrideSection(type){
+  const key=type.charAt(0).toUpperCase()+type.slice(1);
+  const checked=document.getElementById(`ov${key}Override`).checked;
+  document.getElementById(`ov${key}Section`).style.display=checked?'block':'none';
+}
+function toggleOverrideCommentRule(){
+  const on=document.getElementById('ovCommentEnabled').checked;
+  document.getElementById('ovCommentRuleWrap').style.display=on?'block':'none';
+}
+function toggleOverrideViewInputs(){
+  const on=document.getElementById('ovViewEnabled').checked;
+  document.getElementById('ovViewInputs').style.display=on?'grid':'none';
+}
+
+async function openChannelOverrideModal(channelId,channelName,teamId){
+  document.getElementById('ovChannelId').value=channelId;
+  document.getElementById('ovTeamId').value=teamId;
+  document.getElementById('ovExistingId').value='';
+  document.getElementById('ovChannelLabel').textContent=channelName;
+  const commentRules=await SB.get('team_comment_rules',`?team_id=eq.${teamId}&order=created_at`);
+  document.getElementById('ovCommentRuleSel').innerHTML=
+    '<option value="">규칙 선택</option>'+
+    commentRules.map(r=>`<option value="${r.id}">${esc(r.name)}</option>`).join('');
+  const existing=await SB.get('team_channel_overrides',`?team_id=eq.${teamId}&channel_id=eq.${channelId}`);
+  const ov=existing.length?existing[0]:null;
+  ['Base','Comment','View'].forEach(t=>{
+    document.getElementById(`ov${t}Override`).checked=false;
+    document.getElementById(`ov${t}Section`).style.display='none';
+  });
+  if(ov){
+    document.getElementById('ovExistingId').value=ov.id;
+    document.getElementById('ovDeleteBtn').style.display='inline-flex';
+    if(ov.base_enabled!==null&&ov.base_enabled!==undefined){
+      document.getElementById('ovBaseOverride').checked=true;
+      document.getElementById('ovBaseSection').style.display='block';
+      document.getElementById('ovBaseEnabled').checked=!!ov.base_enabled;
+      document.getElementById('ovBasePrice').value=ov.base_price??'';
+    }
+    if(ov.comment_enabled!==null&&ov.comment_enabled!==undefined){
+      document.getElementById('ovCommentOverride').checked=true;
+      document.getElementById('ovCommentSection').style.display='block';
+      document.getElementById('ovCommentEnabled').checked=!!ov.comment_enabled;
+      document.getElementById('ovCommentRuleWrap').style.display=ov.comment_enabled?'block':'none';
+      document.getElementById('ovCommentRuleSel').value=ov.comment_rule_id||'';
+    }
+    if(ov.view_enabled!==null&&ov.view_enabled!==undefined){
+      document.getElementById('ovViewOverride').checked=true;
+      document.getElementById('ovViewSection').style.display='block';
+      document.getElementById('ovViewEnabled').checked=!!ov.view_enabled;
+      document.getElementById('ovViewInputs').style.display=ov.view_enabled?'grid':'none';
+      document.getElementById('ovViewThreshold').value=ov.view_threshold??'';
+      document.getElementById('ovViewPrice').value=ov.view_price??'';
+    }
+  }else{
+    document.getElementById('ovDeleteBtn').style.display='none';
+    document.getElementById('ovBaseEnabled').checked=true;
+    document.getElementById('ovBasePrice').value='';
+    document.getElementById('ovCommentEnabled').checked=false;
+    document.getElementById('ovCommentRuleWrap').style.display='none';
+    document.getElementById('ovViewEnabled').checked=false;
+    document.getElementById('ovViewInputs').style.display='none';
+  }
+  openModal('channelOverrideModal');
+}
+
+async function saveChannelOverride(){
+  const channelId =document.getElementById('ovChannelId').value;
+  const teamId    =document.getElementById('ovTeamId').value;
+  const existingId=document.getElementById('ovExistingId').value;
+  const baseOv    =document.getElementById('ovBaseOverride').checked;
+  const commentOv =document.getElementById('ovCommentOverride').checked;
+  const viewOv    =document.getElementById('ovViewOverride').checked;
+  if(!baseOv&&!commentOv&&!viewOv){
+    if(existingId){
+      setBusy(true);
+      try{await SB.del('team_channel_overrides',`?id=eq.${existingId}`);showToast('예외 설정 삭제 (기본값으로 복귀)','success');}
+      catch(e){showToast('삭제 실패: '+e.message,'error');}
+      setBusy(false);
+    }else{showToast('변경 사항 없음','success');}
+    closeModal('channelOverrideModal');
+    await renderChannelList(teamId,adminSelectedCatId);
+    return;
+  }
+  const body={
+    base_enabled:baseOv?document.getElementById('ovBaseEnabled').checked:null,
+    base_price:baseOv&&document.getElementById('ovBaseEnabled').checked
+      ?(parseInt(document.getElementById('ovBasePrice').value)||0):null,
+    comment_enabled:commentOv?document.getElementById('ovCommentEnabled').checked:null,
+    comment_rule_id:(commentOv&&document.getElementById('ovCommentEnabled').checked)
+      ?(document.getElementById('ovCommentRuleSel').value||null):null,
+    view_enabled:viewOv?document.getElementById('ovViewEnabled').checked:null,
+    view_threshold:(viewOv&&document.getElementById('ovViewEnabled').checked)
+      ?(parseInt(document.getElementById('ovViewThreshold').value)||0):null,
+    view_price:(viewOv&&document.getElementById('ovViewEnabled').checked)
+      ?(parseInt(document.getElementById('ovViewPrice').value)||0):null,
+  };
+  if(body.comment_enabled===true&&!body.comment_rule_id){showToast('댓글 규칙을 선택해 주세요','error');return;}
+  setBusy(true);
+  try{
+    if(existingId){await SB.patch('team_channel_overrides',`?id=eq.${existingId}`,body);showToast('예외 설정 수정 완료','success');}
+    else{await SB.post('team_channel_overrides',{...body,team_id:teamId,channel_id:channelId});showToast('예외 설정 저장 완료','success');}
+    closeModal('channelOverrideModal');
+    await renderChannelList(teamId,adminSelectedCatId);
+  }catch(e){showToast('저장 실패: '+e.message,'error');}
+  setBusy(false);
+}
+
+async function deleteChannelOverride(){
+  const existingId=document.getElementById('ovExistingId').value;
+  const teamId    =document.getElementById('ovTeamId').value;
+  if(!existingId){closeModal('channelOverrideModal');return;}
+  openConfirm('이 채널의 예외 설정을 모두 삭제하고 카테고리 기본값으로 되돌리겠습니까?',async()=>{
+    setBusy(true);
+    try{
+      await SB.del('team_channel_overrides',`?id=eq.${existingId}`);
+      showToast('예외 설정 삭제됨','success');
+      closeModal('channelOverrideModal');
+      await renderChannelList(teamId,adminSelectedCatId);
+    }catch(e){showToast('삭제 실패: '+e.message,'error');}
+    setBusy(false);
+  });
+}
+
 async function toggleChannel(channelId, newActive, teamId, catId) {
   setBusy(true);
   try {
@@ -2195,6 +2664,7 @@ async function renderTeamDetail(teamId) {
   document.getElementById('teamDetailPanel').style.display='block';
   document.getElementById('teamDetailTitle').textContent = team.name+' — SM 목록';
 
+  // SM 목록
   const sms = await SB.get('sm_users', `?team_id=eq.${teamId}&order=created_at`);
   document.getElementById('teamSMList').innerHTML = sms.map(sm =>
     `<div class="admin-item">
@@ -2207,52 +2677,55 @@ async function renderTeamDetail(teamId) {
     </div>`
   ).join('') || '<div style="color:var(--text-muted);font-size:13px;padding:12px">등록된 SM이 없습니다</div>';
 
+  // ★ 신규 인센티브 규칙 렌더 (메인)
+  await renderIncentiveRules(teamId);
+
+  // 레거시 인센티브 (접힘 영역 내부)
   const cats = await SB.get('team_incentive_categories', `?team_id=eq.${teamId}&order=sort_order`);
   document.getElementById('incentiveCatBody').innerHTML = cats.map(c =>
     `<tr style="border-bottom:1px solid var(--border)">
-      <td style="padding:8px">${esc(c.category_name)}</td>
-      <td style="padding:8px;text-align:right">${(c.unit_price||0).toLocaleString()}원</td>
-      <td style="padding:8px;text-align:center">
+      <td style="padding:6px 8px">${esc(c.category_name)}</td>
+      <td style="padding:6px 8px;text-align:right">${(c.unit_price||0).toLocaleString()}원</td>
+      <td style="padding:6px 8px;text-align:center">
         <button class="btn btn-sm ${c.is_active?'btn-primary':'btn-secondary'}" onclick="toggleIncentiveCat('${c.id}',${!c.is_active},'${teamId}')">
           ${c.is_active?'ON':'OFF'}
         </button>
       </td>
-      <td style="padding:8px;text-align:center">
+      <td style="padding:6px 8px;text-align:center">
         <button class="btn btn-sm btn-secondary" onclick="moveIncentiveCat('${c.id}','up','${teamId}')" style="padding:2px 6px">▲</button>
         <button class="btn btn-sm btn-secondary" onclick="moveIncentiveCat('${c.id}','down','${teamId}')" style="padding:2px 6px">▼</button>
       </td>
-      <td style="padding:8px;text-align:center">
+      <td style="padding:6px 8px;text-align:center">
         <button class="btn btn-sm btn-secondary" onclick="openEditIncentiveCat('${c.id}','${esc(c.category_name)}',${c.unit_price},${c.sort_order})">수정</button>
         <button class="btn btn-sm btn-danger" onclick="deleteIncentiveCat('${c.id}','${esc(c.category_name)}','${teamId}')">삭제</button>
       </td>
     </tr>`
-  ).join('') || `<tr><td colspan="5" style="padding:12px;text-align:center;color:var(--text-muted)">인센티브 항목이 없습니다</td></tr>`;
+  ).join('') || `<tr><td colspan="5" style="padding:12px;text-align:center;color:var(--text-muted)">항목 없음</td></tr>`;
 
   const ci = await SB.get('team_comment_incentive', `?team_id=eq.${teamId}`);
   const cic = ci.length>0?ci[0]:null;
   document.getElementById('commentIncentivePanel').innerHTML = cic
-    ? `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;padding:8px">
-        <div><div class="form-label">사용 여부</div>
-          <button class="btn ${cic.enabled?'btn-primary':'btn-secondary'}" onclick="toggleCommentIncentive('${cic.id}',${!cic.enabled},'${teamId}')">
-            ${cic.enabled?'✓ 활성화':'✗ 비활성화'}
+    ? `<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;padding:8px">
+        <div><div class="form-label" style="font-size:11px">사용 여부</div>
+          <button class="btn btn-sm ${cic.enabled?'btn-primary':'btn-secondary'}" onclick="toggleCommentIncentive('${cic.id}',${!cic.enabled},'${teamId}')">
+            ${cic.enabled?'ON':'OFF'}
           </button>
         </div>
-        <div><div class="form-label">기준 댓글수 (건)</div>
+        <div><div class="form-label" style="font-size:11px">기준 댓글수</div>
           <input type="number" class="form-input" id="ciBase_${teamId}" value="${cic.base_count}" min="0" onchange="saveCommentIncentive('${cic.id}','${teamId}')">
         </div>
-        <div><div class="form-label">초과 1건당 단가 (원)</div>
+        <div><div class="form-label" style="font-size:11px">초과분 단가</div>
           <input type="number" class="form-input" id="ciPrice_${teamId}" value="${cic.unit_price}" min="0" step="100" onchange="saveCommentIncentive('${cic.id}','${teamId}')">
         </div>
       </div>`
-    : `<div style="padding:12px;color:var(--text-muted);font-size:13px">
-        댓글 인센티브 설정이 없습니다.
-        <button class="btn btn-sm btn-primary" onclick="createCommentIncentive('${teamId}')">설정 추가</button>
+    : `<div style="padding:8px;color:var(--text-muted);font-size:12px">
+        설정 없음. <button class="btn btn-sm btn-secondary" onclick="createCommentIncentive('${teamId}')">추가</button>
       </div>`;
 
-  // 채널 관리 패널 렌더
+  // 채널 관리
   await renderChannelAdmin(teamId);
 
-  // 미등록 채널 패널 렌더
+  // 미등록 채널
   await renderUnregisteredChannels(teamId);
 }
 
