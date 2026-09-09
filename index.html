@@ -749,30 +749,24 @@ table tr:hover td{background:var(--bg)}
 
     <!-- 계산식 유형 -->
     <div class="form-group">
-      <label class="form-label">계산식 유형</label>
+      <label class="form-label">댓글 계산 순서</label>
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
         <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:10px 12px;border-radius:8px;border:2px solid var(--border)"
                id="crModeAfterLabel">
           <input type="radio" name="crThresholdMode" id="crModeAfter" value="after_division"
-            onchange="updateCommentRulePreview()" style="margin-top:2px">
+            onchange="updateCommentRulePreview()" style="margin-top:3px">
           <div>
-            <div style="font-weight:600;font-size:13px">인정 댓글 기준</div>
-            <div style="font-size:11px;color:var(--text-muted);margin-top:2px">
-              댓글을 먼저 나눈 뒤 기준 수량 차감<br>
-              <code style="font-size:10px">MAX(0, 전체댓글 ÷ N - 기준) × 단가</code>
-            </div>
+            <div style="font-weight:600;font-size:13px">댓글을 나눈 뒤 기준 개수 빼기</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:3px">예: 댓글 절반 인정 → 50개 제외</div>
           </div>
         </label>
         <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;padding:10px 12px;border-radius:8px;border:2px solid var(--border)"
                id="crModeBeforeLabel">
           <input type="radio" name="crThresholdMode" id="crModeBefore" value="before_division"
-            onchange="updateCommentRulePreview()" style="margin-top:2px">
+            onchange="updateCommentRulePreview()" style="margin-top:3px">
           <div>
-            <div style="font-weight:600;font-size:13px">원댓글 기준</div>
-            <div style="font-size:11px;color:var(--text-muted);margin-top:2px">
-              기준 수량을 먼저 뺀 뒤 초과분을 나눔<br>
-              <code style="font-size:10px">MAX(0, 전체댓글 - 기준) ÷ N × 단가</code>
-            </div>
+            <div style="font-weight:600;font-size:13px">기준 개수를 뺀 뒤 댓글 나누기</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:3px">예: 300개 제외 → 남은 댓글의 1/4 인정</div>
           </div>
         </label>
       </div>
@@ -817,19 +811,26 @@ table tr:hover td{background:var(--bg)}
 
     <!-- 실시간 미리보기 -->
     <div style="background:var(--surface-2);border-radius:10px;padding:14px;margin-top:4px">
-      <div style="font-size:12px;font-weight:700;color:var(--accent);margin-bottom:8px">🧮 계산식 미리보기</div>
-      <div id="crFormulaText" style="font-family:monospace;font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:8px"></div>
-      <div id="crFormulaDesc" style="font-size:12px;color:var(--text-muted);line-height:1.6;white-space:pre-line;margin-bottom:12px"></div>
+
+      <!-- 지급 시작 기준 (눈에 띄게) -->
+      <div id="crPayStart" style="background:var(--accent-light,#fff7ed);border:1.5px solid var(--accent);border-radius:8px;padding:8px 12px;margin-bottom:12px;display:none">
+        <div style="font-size:11px;color:var(--accent);font-weight:700;margin-bottom:2px">💰 인센티브 지급 시작</div>
+        <div id="crPayStartText" style="font-size:14px;font-weight:700;color:var(--text-primary)"></div>
+      </div>
+
+      <!-- 계산 방법 (화살표 흐름) -->
+      <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:6px">💬 계산 방법</div>
+      <div id="crFlowText" style="font-size:13px;line-height:2.2;color:var(--text-primary);margin-bottom:12px"></div>
+
       <!-- 테스트 입력 -->
       <div style="border-top:1px solid var(--border);padding-top:10px">
-        <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:6px">계산 테스트</div>
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:8px">계산 테스트</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
           <span style="font-size:12px">댓글 수</span>
-          <input type="number" id="crTestComments" class="form-input" min="0" placeholder="예: 400"
+          <input type="number" id="crTestComments" class="form-input" min="0" placeholder="예: 120"
             style="width:90px" oninput="updateCommentRulePreview()">
-          <span style="font-size:12px">→ 예상 지급액</span>
-          <span id="crTestResult" style="font-size:14px;font-weight:700;color:var(--accent)">—</span>
         </div>
+        <div id="crTestSteps" style="font-size:12px;color:var(--text-muted);line-height:2;display:none"></div>
       </div>
     </div>
 
@@ -2350,40 +2351,105 @@ function calcCommentEligible(thresholdMode, divisor, threshold, hasCap, maxCount
 function updateCommentRulePreview() {
   const { thresholdMode, divisor, threshold, price, hasCap, maxCount } = getCommentRuleInputs();
 
-  // 라디오 버튼 선택 강조
+  // ── 라디오 버튼 선택 강조 ──────────────────────────────────────
   const afterLabel  = document.getElementById('crModeAfterLabel');
   const beforeLabel = document.getElementById('crModeBeforeLabel');
   if (afterLabel)  afterLabel.style.borderColor  = thresholdMode === 'after_division'  ? 'var(--accent)' : 'var(--border)';
   if (beforeLabel) beforeLabel.style.borderColor = thresholdMode === 'before_division' ? 'var(--accent)' : 'var(--border)';
 
-  // 계산식 텍스트
-  const capStr = hasCap && maxCount ? `, 최대 ${maxCount}건` : '';
-  let formula, desc;
-  if (thresholdMode === 'after_division') {
-    formula = `MAX(0, 전체댓글 ÷ ${divisor} - ${threshold}${capStr}) × ${price.toLocaleString()}원`;
-    desc = `전체 댓글을 ${divisorLabel(divisor)}으로 인정한 뒤,\n인정 댓글 ${threshold}개를 초과한 수량에\n1개당 ${price.toLocaleString()}원을 지급합니다.`;
-  } else {
-    const divStr = divisor === 1 ? '' : ` ÷ ${divisor}`;
-    formula = `MAX(0, 전체댓글 - ${threshold})${divStr} × ${price.toLocaleString()}원${capStr ? ' (최대 ' + maxCount + '건)' : ''}`;
-    desc = `전체 댓글 ${threshold}개를 초과한 댓글만 대상으로,\n그 초과분의 ${divisorLabel(divisor)}을 인정하고\n인정 1개당 ${price.toLocaleString()}원을 지급합니다.`;
+  const dl = divisor === 1 ? '전체' : `1/${divisor}`;
+
+  // ── 지급 시작 기준 ────────────────────────────────────────────
+  // after_division: 원댓글 threshold × divisor 초과부터 지급
+  // before_division: 원댓글 threshold 초과부터 지급
+  const payStartEl   = document.getElementById('crPayStart');
+  const payStartText = document.getElementById('crPayStartText');
+  if (payStartEl && payStartText && (threshold > 0 || divisor > 0)) {
+    let startComments;
+    if (thresholdMode === 'after_division') {
+      startComments = threshold * divisor; // 원댓글 기준 지급 시작점
+    } else {
+      startComments = threshold;           // 원댓글 기준 지급 시작점
+    }
+    payStartText.textContent = `댓글 ${startComments.toLocaleString()}개 초과부터`;
+    payStartEl.style.display = 'block';
+  } else if (payStartEl) {
+    payStartEl.style.display = 'none';
   }
 
-  const formulaEl = document.getElementById('crFormulaText');
-  const descEl    = document.getElementById('crFormulaDesc');
-  if (formulaEl) formulaEl.textContent = formula;
-  if (descEl)    descEl.textContent    = desc;
-
-  // 테스트 계산
-  const testCommentsEl = document.getElementById('crTestComments');
-  const testResultEl   = document.getElementById('crTestResult');
-  if (testResultEl) {
-    const tc = parseInt(testCommentsEl?.value) || 0;
-    if (tc > 0 && price > 0) {
-      const eligible  = calcCommentEligible(thresholdMode, divisor, threshold, hasCap, maxCount, tc);
-      const incentive = eligible * price;
-      testResultEl.textContent = incentive.toLocaleString() + '원';
+  // ── 계산 방법 (화살표 흐름) ───────────────────────────────────
+  const flowEl = document.getElementById('crFlowText');
+  if (flowEl) {
+    let steps = [];
+    if (thresholdMode === 'after_division') {
+      if (divisor !== 1) steps.push(`전체 댓글의 ${dl} 인정`);
+      steps.push(`인정 댓글 ${threshold}개 제외`);
+      if (hasCap && maxCount) steps.push(`최대 ${maxCount}개까지만 인정`);
+      steps.push(`남은 인정 댓글 1개당 ${price.toLocaleString()}원`);
     } else {
-      testResultEl.textContent = '—';
+      steps.push(`${threshold}개 초과분만 계산`);
+      if (divisor !== 1) steps.push(`초과 댓글의 ${dl} 인정`);
+      if (hasCap && maxCount) steps.push(`최대 ${maxCount}개까지만 인정`);
+      steps.push(`인정 댓글 1개당 ${price.toLocaleString()}원`);
+    }
+    flowEl.innerHTML = steps.map((s, i) =>
+      `<div style="display:flex;align-items:center;gap:6px">
+        <span style="color:var(--accent);font-weight:700;min-width:16px">${i === 0 ? '' : '→'}</span>
+        <span style="${i === steps.length - 1 ? 'font-weight:600' : ''}">${s}</span>
+      </div>`
+    ).join('');
+  }
+
+  // ── 테스트 계산 — 단계별 과정 ─────────────────────────────────
+  const tc      = parseInt(document.getElementById('crTestComments')?.value) || 0;
+  const stepsEl = document.getElementById('crTestSteps');
+  if (stepsEl) {
+    if (tc <= 0 || price <= 0) {
+      stepsEl.style.display = 'none';
+    } else {
+      stepsEl.style.display = 'block';
+      let rows = [], current = tc;
+
+      if (thresholdMode === 'after_division') {
+        // step1: 나누기 (divisor > 1이면)
+        if (divisor !== 1) {
+          const afterDiv = current / divisor;
+          rows.push(`${current}개 ÷ ${divisor} = ${fmtN(afterDiv)}개`);
+          current = afterDiv;
+        }
+        // step2: 기준 차감
+        const afterThresh = Math.max(0, current - threshold);
+        rows.push(`${fmtN(current)}개 - ${threshold}개 = ${fmtN(afterThresh)}개`);
+        current = afterThresh;
+      } else {
+        // step1: 기준 차감
+        const afterThresh = Math.max(0, current - threshold);
+        rows.push(`${current}개 - ${threshold}개 = ${fmtN(afterThresh)}개`);
+        current = afterThresh;
+        // step2: 나누기 (divisor > 1이면)
+        if (divisor !== 1) {
+          const afterDiv = current / divisor;
+          rows.push(`${fmtN(current)}개 ÷ ${divisor} = ${fmtN(afterDiv)}개`);
+          current = afterDiv;
+        }
+      }
+
+      // cap 적용
+      if (hasCap && maxCount != null && current > maxCount) {
+        rows.push(`최대 ${maxCount}개 제한 → ${maxCount}개`);
+        current = maxCount;
+      }
+
+      // 지급액
+      const incentive = current * price;
+      if (current <= 0) {
+        // 지급 기준 이하
+        rows.push(`<span style="color:var(--text-muted)">지급 기준 이하 · 0원</span>`);
+      } else {
+        rows.push(`${fmtN(current)}개 × ${price.toLocaleString()}원 = <strong style="color:var(--accent)">${incentive.toLocaleString()}원</strong>`);
+      }
+
+      stepsEl.innerHTML = rows.map(r => `<div>${r}</div>`).join('');
     }
   }
 }
