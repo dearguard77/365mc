@@ -778,18 +778,18 @@ table tr:hover td{background:var(--bg)}
 
     <!-- 최대 인정 건수 -->
     <div class="form-group" style="margin-top:12px">
-      <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;flex-wrap:wrap">
         <input type="checkbox" id="crHasCap" onchange="toggleCapInput()">
         <span class="form-label" style="margin:0">최대 인정 건수</span>
         <input type="number" id="crMaxCount" min="1" placeholder="예: 100"
-          style="width:80px;display:none;margin-left:4px" class="form-input"
+          style="width:110px;display:none;margin-left:4px" class="form-input"
           oninput="updateCommentRulePreview()">
         <span id="crMaxCountUnit" style="font-size:12px;color:var(--text-muted);display:none">건</span>
       </label>
     </div>
 
-    <!-- 한 줄 요약 + 예시 미리보기 -->
-    <div style="background:var(--surface-2);border-radius:8px;padding:12px;margin-top:4px">
+    <!-- 한 줄 요약 + 예시 미리보기 (내용 없으면 숨김) -->
+    <div id="crPreviewBox" style="background:var(--surface-2);border-radius:8px;padding:12px;margin-top:4px;display:none">
       <div id="crSummary" style="font-size:13px;color:var(--text-primary);margin-bottom:6px"></div>
       <div id="crExample" style="font-size:12px;color:var(--text-muted)"></div>
     </div>
@@ -2293,13 +2293,15 @@ function updateCommentRulePreview() {
   const { divisor, threshold, price, hasCap, maxCount } = getCommentRuleInputs();
 
   // 한 줄 요약
-  const summaryEl = document.getElementById('crSummary');
-  const exampleEl = document.getElementById('crExample');
+  const summaryEl    = document.getElementById('crSummary');
+  const exampleEl    = document.getElementById('crExample');
+  const previewBoxEl = document.getElementById('crPreviewBox');
   if (!summaryEl) return;
 
   if (!threshold && !price) {
     summaryEl.textContent = '';
-    exampleEl.textContent = '';
+    if (exampleEl) exampleEl.innerHTML = '';
+    if (previewBoxEl) previewBoxEl.style.display = 'none';
     return;
   }
 
@@ -2310,7 +2312,7 @@ function updateCommentRulePreview() {
   let summary = `댓글 ${threshold.toLocaleString()}개 초과분의 ${dl}을 인정하여 인정 1건당 ${price.toLocaleString()}원 지급${capStr}`;
   summaryEl.textContent = summary;
 
-  // 예시 계산 (threshold + 20% 기준 예시값 자동 생성)
+  // 예시 계산
   const exampleComments = threshold > 0 ? Math.ceil(threshold * 1.3 / 10) * 10 : 120;
   const over    = Math.max(0, exampleComments - threshold);
   const eligible = divisor === 1 ? over : over / divisor;
@@ -2329,6 +2331,9 @@ function updateCommentRulePreview() {
       exampleEl.innerHTML = `예) 댓글 ${exampleComments}개<br><span style="font-family:monospace">${formula}</span>${capNote}`;
     }
   }
+
+  // 내용이 있을 때만 미리보기 박스 표시
+  if (previewBoxEl) previewBoxEl.style.display = 'block';
 }
 
 function openAddCommentRule() {
@@ -2349,7 +2354,10 @@ function openAddCommentRule() {
   if (mu) mu.style.display = 'none';
   const s = document.getElementById('crSummary');
   const e = document.getElementById('crExample');
-  if (s) s.textContent = ''; if (e) e.textContent = '';
+  const pb = document.getElementById('crPreviewBox');
+  if (s) s.textContent = '';
+  if (e) e.innerHTML = '';
+  if (pb) pb.style.display = 'none';
   openModal('commentRuleModal');
   setTimeout(() => document.getElementById('crName').focus(), 100);
 }
