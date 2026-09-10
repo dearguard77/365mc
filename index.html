@@ -539,11 +539,11 @@ table tr:hover td{background:var(--bg)}
           <div class="admin-panel-body" id="teamSMList"></div>
         </div>
 
-        <!-- ★ 신규: 댓글 규칙 관리 -->
+        <!-- ★ 신규: 댓글 인센티브 기준 -->
         <div class="admin-panel" style="margin-bottom:20px">
           <div class="admin-panel-header">
-            &#128172; 댓글 규칙 관리
-            <button class="btn btn-primary btn-sm" onclick="openAddCommentRule()">+ 규칙 추가</button>
+            &#128172; 댓글 인센티브 기준
+            <button class="btn btn-primary btn-sm" onclick="openAddCommentRule()">+ 기준 추가</button>
           </div>
           <div class="admin-panel-body" id="commentRuleList">
             <div style="color:var(--text-muted);font-size:13px">팀을 선택하면 표시됩니다</div>
@@ -729,14 +729,14 @@ table tr:hover td{background:var(--bg)}
 </div>
 
 <!-- 채널 예외(override) 설정 모달 -->
-<!-- 댓글 규칙 추가/수정 모달 -->
+<!-- 댓글 인센티브 기준 추가/수정 모달 -->
 <div class="modal-overlay" id="commentRuleModal">
   <div class="modal" style="max-width:480px">
-    <div class="modal-title" id="commentRuleModalTitle">댓글 규칙 추가</div>
+    <div class="modal-title" id="commentRuleModalTitle">댓글 인센티브 기준 추가</div>
     <input type="hidden" id="editCommentRuleId">
 
-    <!-- 규칙명 -->
-    <div class="form-group"><label class="form-label">규칙명 *</label>
+    <!-- 기준명 -->
+    <div class="form-group"><label class="form-label">기준명 *</label>
       <input type="text" class="form-input" id="crName" placeholder="예: 기본 댓글 규칙"
         oninput="updateCommentRulePreview()"></div>
 
@@ -2188,7 +2188,7 @@ async function renderCommentRules(teamId) {
   if (!el) return;
   const rules = await SB.get('team_comment_rules', `?team_id=eq.${teamId}&order=created_at`);
   if (!rules.length) {
-    el.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:8px">등록된 댓글 규칙이 없습니다</div>';
+    el.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:8px">등록된 댓글 인센티브 기준이 없습니다</div>';
     return;
   }
 
@@ -2340,7 +2340,7 @@ function openAddCommentRule() {
   if (!adminSelectedTeamId) { showToast('팀을 먼저 선택해 주세요', 'error'); return; }
   const modal = document.getElementById('commentRuleModal');
   if (!modal) { showToast('댓글 규칙 모달이 없습니다. 페이지를 새로고침해 주세요', 'error'); return; }
-  document.getElementById('commentRuleModalTitle').textContent = '댓글 규칙 추가';
+  document.getElementById('commentRuleModalTitle').textContent = '댓글 인센티브 기준 추가';
   document.getElementById('editCommentRuleId').value = '';
   document.getElementById('crName').value = '';
   document.getElementById('crCalcMode').value = 'supporter_total';
@@ -2366,7 +2366,7 @@ async function openEditCommentRule(ruleId) {
   const rules = await SB.get('team_comment_rules', `?id=eq.${ruleId}`);
   if (!rules.length) return;
   const r = rules[0];
-  document.getElementById('commentRuleModalTitle').textContent = '댓글 규칙 수정';
+  document.getElementById('commentRuleModalTitle').textContent = '댓글 인센티브 기준 수정';
   document.getElementById('editCommentRuleId').value  = r.id;
   document.getElementById('crName').value             = r.name;
   document.getElementById('crCalcMode').value         = r.calculation_mode || 'supporter_total';
@@ -2391,7 +2391,7 @@ async function saveCommentRule() {
   const hasCap   = document.getElementById('crHasCap').checked;
   const maxCount = hasCap ? (parseInt(document.getElementById('crMaxCount').value) || null) : null;
   const editId   = document.getElementById('editCommentRuleId').value;
-  if (!name)               { showToast('규칙명을 입력해 주세요', 'error'); return; }
+  if (!name)               { showToast('기준명을 입력해 주세요', 'error'); return; }
   if (!price)              { showToast('지급 단가를 입력해 주세요', 'error'); return; }
   if (hasCap && !maxCount) { showToast('최대 인정 건수를 입력해 주세요', 'error'); return; }
   setBusy(true);
