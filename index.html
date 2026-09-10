@@ -590,6 +590,16 @@ table tr:hover td{background:var(--bg)}
           </div>
         </div>
 
+        <!-- SM 개인 인센티브 -->
+        <div class="admin-panel" style="margin-bottom:20px">
+          <div class="admin-panel-header">&#128100; SM 개인 인센티브
+            <button class="btn btn-primary btn-sm" onclick="openSmBonusModal()">+ 추가</button>
+          </div>
+          <div class="admin-panel-body" id="smBonusList">
+            <div style="color:var(--text-muted);font-size:13px;padding:8px">팀을 선택하면 표시됩니다</div>
+          </div>
+        </div>
+
         <!-- 레거시 인센티브 (접힘 상태) -->
         <details style="margin-bottom:20px">
           <summary style="cursor:pointer;padding:10px 12px;background:var(--surface-2);border-radius:8px;font-size:13px;color:var(--text-muted);list-style:none;display:flex;align-items:center;gap:8px">
@@ -952,6 +962,77 @@ table tr:hover td{background:var(--bg)}
       <button class="btn btn-danger btn-sm" id="ovDeleteBtn" style="display:none"
         onclick="deleteChannelOverride()">예외 삭제</button>
       <button class="btn btn-primary" onclick="saveChannelOverride()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- SM 개인 인센티브 추가/수정 모달 -->
+<div class="modal-overlay" id="smBonusModal">
+  <div class="modal" style="max-width:500px">
+    <div class="modal-title" id="smBonusModalTitle">개인 인센티브 추가</div>
+    <input type="hidden" id="sbEditId">
+    <input type="hidden" id="sbEditType"><!-- 'override' | 'bonus' -->
+
+    <!-- SM 선택 -->
+    <div class="form-group"><label class="form-label">SM *</label>
+      <select class="form-input" id="sbSmSel"></select></div>
+
+    <!-- 인센티브명 -->
+    <div class="form-group"><label class="form-label">인센티브명 *</label>
+      <input type="text" class="form-input" id="sbName" placeholder="예: 영상 편집비"></div>
+
+    <!-- 적용 카테고리 -->
+    <div class="form-group"><label class="form-label">적용 카테고리</label>
+      <select class="form-input" id="sbCatSel" onchange="onSbCatChange()">
+        <option value="">전체 활동</option>
+      </select></div>
+
+    <!-- 적용 채널 -->
+    <div class="form-group" id="sbChannelWrap"><label class="form-label">적용 채널</label>
+      <select class="form-input" id="sbChannelSel">
+        <option value="">전체 (카테고리 내 모든 채널)</option>
+      </select></div>
+
+    <!-- 지급 방식 -->
+    <div class="form-group"><label class="form-label">지급 방식</label>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 10px;border-radius:8px;border:2px solid var(--border)" id="sbModeOverrideLabel">
+          <input type="radio" name="sbMode" id="sbModeOverride" value="override"
+            onchange="onSbModeChange()">
+          <div>
+            <div style="font-weight:600;font-size:13px">기존 활동비 대신 적용</div>
+            <div style="font-size:11px;color:var(--text-muted)">팀 기본 활동비를 이 금액으로 대체</div>
+          </div>
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 10px;border-radius:8px;border:2px solid var(--border)" id="sbModeBonusLabel">
+          <input type="radio" name="sbMode" id="sbModeBonus" value="bonus"
+            onchange="onSbModeChange()">
+          <div>
+            <div style="font-weight:600;font-size:13px">기존 인센티브에 추가 지급</div>
+            <div style="font-size:11px;color:var(--text-muted)">기존 계산 결과에 별도 수당을 더함</div>
+          </div>
+        </label>
+      </div>
+    </div>
+
+    <!-- 지급액 -->
+    <div class="form-group"><label class="form-label">지급액 *</label>
+      <div style="display:flex;align-items:center;gap:8px">
+        <input type="number" class="form-input" id="sbPrice" min="0" step="100" placeholder="예: 20000" style="flex:1">
+        <span style="font-size:13px;color:var(--text-muted);white-space:nowrap">원 / 건</span>
+      </div></div>
+
+    <!-- 사용 여부 (bonus 방식에서만 의미 있음) -->
+    <div class="form-group" id="sbActiveWrap">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+        <input type="checkbox" id="sbIsActive" checked>
+        <span class="form-label" style="margin:0">사용</span>
+      </label>
+    </div>
+
+    <div class="form-actions">
+      <button class="btn btn-secondary" onclick="closeModal('smBonusModal')">취소</button>
+      <button class="btn btn-primary" onclick="saveSmBonus()">저장</button>
     </div>
   </div>
 </div>
@@ -2420,6 +2501,277 @@ async function renderIncentiveRules(teamId) {
   await renderCategoryRules(teamId);
 }
 
+async function deleteCategoryRule(ruleId, catName, teamId) {
+  openConfirm(
+    `'${catName}' 카테고리의 지급 설정을 삭제하시겠습니까?\n카테고리와 채널은 삭제되지 않습니다.`,
+    async () => {
+      setBusy(true);
+      try {
+        await SB.del('team_category_rules', `?id=eq.${ruleId}`);
+        showToast(`'${catName}' 지급 설정이 삭제되었습니다`, 'success');
+        await renderCategoryRules(teamId);
+      } catch(e) { showToast('삭제 실패: ' + e.message, 'error'); }
+      setBusy(false);
+    }
+  );
+}
+
+// ============================================================
+// SM 개인 인센티브 (sm_user_category_overrides + sm_bonus_rules)
+// ============================================================
+
+// ── 목록 렌더 ────────────────────────────────────────────────────
+async function renderSmBonusList(teamId) {
+  const el = document.getElementById('smBonusList');
+  if (!el) return;
+
+  // 해당 팀 SM 목록
+  const sms = db.sms.filter(s => s.teamId === teamId);
+  if (!sms.length) {
+    el.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:8px">등록된 SM이 없습니다</div>';
+    return;
+  }
+
+  // override + bonus 동시 조회
+  const [overrides, bonuses] = await Promise.all([
+    SB.get('sm_user_category_overrides', `?team_id=eq.${teamId}&select=*`),
+    SB.get('sm_bonus_rules',             `?team_id=eq.${teamId}&order=created_at`),
+  ]);
+
+  // 카테고리/채널 이름 조회용 맵
+  const catMap = Object.fromEntries((db.masterCategories||[]).map(c=>[c.id,c.name]));
+  // 채널 이름은 team_channels에서 조회 필요 — 이미 로드된 db.teamChannels 활용
+  const chMap  = Object.fromEntries((db.teamChannels||[]).map(c=>[c.id,c.name]));
+
+  // SM별로 그룹핑
+  let html = '';
+  sms.forEach(sm => {
+    const smOverrides = overrides.filter(o => o.sm_id === sm.id);
+    const smBonuses   = bonuses.filter(b => b.sm_id === sm.id);
+    const total = smOverrides.length + smBonuses.length;
+
+    html += `<div style="margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+        <span style="font-size:13px;font-weight:700">${esc(sm.name)} SM</span>
+        <button class="btn btn-sm btn-secondary" style="font-size:11px"
+          onclick="openSmBonusModal('${sm.id}','${esc(sm.name)}','${teamId}')">+ 추가</button>
+      </div>`;
+
+    if (!total) {
+      html += `<div style="font-size:12px;color:var(--text-muted);padding:4px 8px">등록된 개인 인센티브 없음</div>`;
+    } else {
+      // override 행
+      smOverrides.forEach(o => {
+        const catName = catMap[o.category_id] || '?';
+        const chName  = o.channel_id ? (chMap[o.channel_id]||'?') : '전체';
+        const scope   = `${catName} / ${chName}`;
+        const label   = `${catName} 활동비`;
+        const priceStr = o.base_enabled && o.base_price != null
+          ? `${(o.base_price).toLocaleString()}원/건` : '—';
+        html += smBonusRow(o.id, 'override', label, scope, '활동비 대체', priceStr, true, sm.id, teamId);
+      });
+      // bonus 행
+      smBonuses.forEach(b => {
+        const catName = b.category_id ? (catMap[b.category_id]||'?') : '전체 활동';
+        const chName  = b.channel_id  ? (chMap[b.channel_id] ||'?') : '전체';
+        const scope   = b.category_id ? `${catName} / ${chName}` : '전체 활동';
+        html += smBonusRow(b.id, 'bonus', esc(b.name), scope, '추가 지급',
+          `${(b.bonus_price||0).toLocaleString()}원/건`, b.is_active, sm.id, teamId);
+      });
+    }
+    html += `</div>`;
+  });
+
+  el.innerHTML = html;
+}
+
+function smBonusRow(id, type, name, scope, method, price, isActive, smId, teamId) {
+  return `<div style="display:grid;grid-template-columns:1fr 1fr 80px 90px 50px auto;gap:6px;align-items:center;padding:6px 8px;border-bottom:1px solid var(--border);font-size:12px">
+    <div style="font-weight:600">${name}</div>
+    <div style="color:var(--text-muted)">${scope}</div>
+    <div style="text-align:center;font-size:11px">${method}</div>
+    <div style="text-align:right;color:var(--accent);font-weight:600">${price}</div>
+    <div style="text-align:center">
+      <span style="font-size:11px;color:${isActive?'var(--accent)':'var(--text-muted)'}">${isActive?'ON':'OFF'}</span>
+    </div>
+    <div style="display:flex;gap:4px;white-space:nowrap">
+      <button class="btn btn-sm btn-secondary" style="font-size:11px"
+        onclick="openSmBonusModal('${smId}','','${teamId}','${type}','${id}')">수정</button>
+      <button class="btn btn-sm" style="font-size:11px;color:var(--text-muted);border:1px solid var(--border);background:transparent"
+        onclick="deleteSmBonus('${id}','${type}','${name}','${teamId}')">삭제</button>
+    </div>
+  </div>`;
+}
+
+// ── 모달 열기 ────────────────────────────────────────────────────
+async function openSmBonusModal(smId='', smName='', teamId='', editType='', editId='') {
+  if (!teamId) teamId = adminSelectedTeamId;
+  document.getElementById('smBonusModalTitle').textContent = editId ? '개인 인센티브 수정' : '개인 인센티브 추가';
+  document.getElementById('sbEditId').value   = editId;
+  document.getElementById('sbEditType').value = editType;
+
+  // SM 드롭다운
+  const smSel = document.getElementById('sbSmSel');
+  const teamSms = db.sms.filter(s => s.teamId === teamId);
+  smSel.innerHTML = teamSms.map(s =>
+    `<option value="${s.id}" ${s.id===smId?'selected':''}>${esc(s.name)}</option>`
+  ).join('');
+
+  // 카테고리 드롭다운
+  const catSel = document.getElementById('sbCatSel');
+  catSel.innerHTML = '<option value="">전체 활동</option>' +
+    (db.masterCategories||[]).map(c =>
+      `<option value="${c.id}">${esc(c.name)}</option>`
+    ).join('');
+
+  // 초기화
+  document.getElementById('sbName').value = '';
+  document.getElementById('sbPrice').value = '';
+  document.getElementById('sbIsActive').checked = true;
+  document.getElementById('sbModeBonus').checked = true;
+  onSbModeChange();
+  onSbCatChange();
+
+  // 수정 모드: 기존값 로드
+  if (editId && editType) {
+    setBusy(true);
+    try {
+      if (editType === 'override') {
+        const rows = await SB.get('sm_user_category_overrides', `?id=eq.${editId}`);
+        if (rows.length) {
+          const r = rows[0];
+          smSel.value = r.sm_id;
+          catSel.value = r.category_id || '';
+          await onSbCatChange();
+          document.getElementById('sbChannelSel').value = r.channel_id || '';
+          document.getElementById('sbModeOverride').checked = true;
+          document.getElementById('sbName').value = `${(db.masterCategories.find(c=>c.id===r.category_id)||{}).name||''} 활동비`;
+          document.getElementById('sbPrice').value = r.base_price || '';
+          document.getElementById('sbIsActive').checked = true;
+        }
+      } else {
+        const rows = await SB.get('sm_bonus_rules', `?id=eq.${editId}`);
+        if (rows.length) {
+          const r = rows[0];
+          smSel.value = r.sm_id;
+          catSel.value = r.category_id || '';
+          await onSbCatChange();
+          document.getElementById('sbChannelSel').value = r.channel_id || '';
+          document.getElementById('sbModeBonus').checked = true;
+          document.getElementById('sbName').value = r.name;
+          document.getElementById('sbPrice').value = r.bonus_price || '';
+          document.getElementById('sbIsActive').checked = r.is_active;
+        }
+      }
+      onSbModeChange();
+    } catch(e) { showToast('데이터 로드 실패: '+e.message,'error'); }
+    setBusy(false);
+  }
+
+  openModal('smBonusModal');
+  setTimeout(()=>document.getElementById('sbName').focus(),100);
+}
+
+async function onSbCatChange() {
+  const catId  = document.getElementById('sbCatSel').value;
+  const teamId = adminSelectedTeamId;
+  const chSel  = document.getElementById('sbChannelSel');
+  chSel.innerHTML = '<option value="">전체 (카테고리 내 모든 채널)</option>';
+  if (catId && teamId) {
+    const chs = await SB.get('team_channels',
+      `?team_id=eq.${teamId}&category_id=eq.${catId}&is_active=eq.true&order=sort_order`);
+    chSel.innerHTML += chs.map(c =>
+      `<option value="${c.id}">${esc(c.name)}</option>`
+    ).join('');
+  }
+}
+
+function onSbModeChange() {
+  const mode = document.querySelector('input[name="sbMode"]:checked')?.value || 'bonus';
+  document.getElementById('sbModeOverrideLabel').style.borderColor = mode==='override'?'var(--accent)':'var(--border)';
+  document.getElementById('sbModeBonusLabel').style.borderColor    = mode==='bonus'   ?'var(--accent)':'var(--border)';
+  // override에서는 '사용' 체크박스 불필요
+  document.getElementById('sbActiveWrap').style.display = mode==='override' ? 'none' : 'block';
+}
+
+// ── 저장 ────────────────────────────────────────────────────────
+async function saveSmBonus() {
+  const editId   = document.getElementById('sbEditId').value;
+  const editType = document.getElementById('sbEditType').value;
+  const smId     = document.getElementById('sbSmSel').value;
+  const name     = document.getElementById('sbName').value.trim();
+  const catId    = document.getElementById('sbCatSel').value || null;
+  const chId     = document.getElementById('sbChannelSel').value || null;
+  const mode     = document.querySelector('input[name="sbMode"]:checked')?.value || 'bonus';
+  const price    = parseInt(document.getElementById('sbPrice').value) || 0;
+  const isActive = document.getElementById('sbIsActive').checked;
+  const teamId   = adminSelectedTeamId;
+
+  if (!smId)  { showToast('SM을 선택해 주세요', 'error'); return; }
+  if (!name)  { showToast('인센티브명을 입력해 주세요', 'error'); return; }
+  if (!price) { showToast('지급액을 입력해 주세요', 'error'); return; }
+
+  setBusy(true);
+  try {
+    if (mode === 'override') {
+      // sm_user_category_overrides: 같은 sm+cat+ch 조합이면 UPSERT
+      const body = {
+        team_id: teamId, sm_id: smId,
+        category_id: catId, channel_id: chId,
+        base_enabled: true, base_price: price,
+        comment_enabled: null, comment_rule_id: null,
+        view_enabled: null, view_threshold: null, view_price: null,
+      };
+      if (editId && editType === 'override') {
+        await SB.patch('sm_user_category_overrides', `?id=eq.${editId}`, { base_price: price });
+      } else {
+        // 중복 확인 후 UPDATE or INSERT
+        const exist = await SB.get('sm_user_category_overrides',
+          `?team_id=eq.${teamId}&sm_id=eq.${smId}&category_id=${catId?`eq.${catId}`:'is.null'}&channel_id=${chId?`eq.${chId}`:'is.null'}`);
+        if (exist.length) {
+          await SB.patch('sm_user_category_overrides', `?id=eq.${exist[0].id}`, { base_price: price, base_enabled: true });
+        } else {
+          await SB.post('sm_user_category_overrides', body);
+        }
+      }
+      showToast('개인 활동비 설정이 저장되었습니다', 'success');
+    } else {
+      // sm_bonus_rules
+      const body = {
+        team_id: teamId, sm_id: smId, name,
+        category_id: catId, channel_id: chId,
+        bonus_price: price, is_active: isActive,
+      };
+      if (editId && editType === 'bonus') {
+        await SB.patch('sm_bonus_rules', `?id=eq.${editId}`, { name, category_id: catId, channel_id: chId, bonus_price: price, is_active: isActive });
+      } else {
+        await SB.post('sm_bonus_rules', body);
+      }
+      showToast('개인 인센티브가 저장되었습니다', 'success');
+    }
+    closeModal('smBonusModal');
+    await renderSmBonusList(teamId);
+  } catch(e) { showToast('저장 실패: ' + e.message, 'error'); }
+  setBusy(false);
+}
+
+// ── 삭제 ────────────────────────────────────────────────────────
+async function deleteSmBonus(id, type, name, teamId) {
+  openConfirm(
+    `'${name}' 개인 인센티브를 삭제하시겠습니까?`,
+    async () => {
+      setBusy(true);
+      try {
+        const table = type === 'override' ? 'sm_user_category_overrides' : 'sm_bonus_rules';
+        await SB.del(table, `?id=eq.${id}`);
+        showToast('삭제되었습니다', 'success');
+        await renderSmBonusList(teamId);
+      } catch(e) { showToast('삭제 실패: '+e.message,'error'); }
+      setBusy(false);
+    }
+  );
+}
+
 // ============================================================
 // 댓글 규칙 모달 헬퍼 (단순화: threshold = 원댓글 지급 시작 기준)
 // 통일 계산식: MAX(0, 총댓글 - threshold) / divisor × price
@@ -3026,6 +3378,9 @@ async function renderTeamDetail(teamId) {
 
   // 미등록 채널
   await renderUnregisteredChannels(teamId);
+
+  // SM 개인 인센티브
+  await renderSmBonusList(teamId);
 }
 
 function openAddTeam() {
