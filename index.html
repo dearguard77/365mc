@@ -573,7 +573,19 @@ table tr:hover td{background:var(--bg)}
             <button class="btn btn-primary btn-sm" onclick="openAddChannel()">+ 채널 추가</button>
           </div>
           <div class="admin-panel-body">
-            <div id="channelCatTabs" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px"></div>
+            <!-- 카테고리 탭 행 + + 카테고리 버튼 -->
+            <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:8px">
+              <div id="channelCatTabs" style="display:flex;flex-wrap:wrap;gap:6px"></div>
+              <button class="btn btn-sm btn-secondary" onclick="openAddCategory()"
+                style="font-size:11px;padding:3px 9px">+ 카테고리</button>
+            </div>
+            <!-- 선택된 카테고리 이름 + 수정/삭제 -->
+            <div id="channelCatBar" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;padding:7px 10px;background:var(--surface-2);border-radius:8px">
+              <span id="channelCatBarName" style="font-size:13px;font-weight:600;flex:1"></span>
+              <button class="btn btn-sm btn-secondary" onclick="openEditCategory()" style="font-size:11px">카테고리 수정</button>
+              <button class="btn btn-sm" onclick="deleteCategory()"
+                style="font-size:11px;color:var(--text-muted);background:transparent;border:1px solid var(--border)">카테고리 삭제</button>
+            </div>
             <div id="channelListPanel"></div>
           </div>
         </div>
@@ -724,6 +736,20 @@ table tr:hover td{background:var(--bg)}
     <div class="form-actions">
       <button class="btn btn-secondary" onclick="closeModal('channelModal')">취소</button>
       <button class="btn btn-primary" onclick="saveChannel()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 카테고리 추가/수정 모달 -->
+<div class="modal-overlay" id="categoryModal">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-title" id="categoryModalTitle">카테고리 추가</div>
+    <input type="hidden" id="editCategoryModalId">
+    <div class="form-group"><label class="form-label">카테고리명 *</label>
+      <input type="text" class="form-input" id="categoryModalName" placeholder="예: 영상"></div>
+    <div class="form-actions">
+      <button class="btn btn-secondary" onclick="closeModal('categoryModal')">취소</button>
+      <button class="btn btn-primary" onclick="saveCategory()">저장</button>
     </div>
   </div>
 </div>
@@ -2015,31 +2041,8 @@ async function registerLegacyChannel(chName, teamId) {
 // 현재 선택된 카테고리 id (채널 관리 탭 내)
 let adminSelectedCatId = null;
 
-// renderTeamDetail 호출 후 채널 관리 패널도 렌더
-async function renderChannelAdmin(teamId) {
-  // 카테고리 탭 버튼 생성
-  const tabWrap = document.getElementById('channelCatTabs');
-  if (!tabWrap) return;
-  tabWrap.innerHTML = db.masterCategories.map(c =>
-    `<button class="btn btn-sm ${adminSelectedCatId===c.id?'btn-primary':'btn-secondary'}"
-      onclick="selectChannelCat('${c.id}','${teamId}')">${esc(c.name)}</button>`
-  ).join('');
-
-  // 첫 진입 시 첫 번째 카테고리 자동 선택
-  if (!adminSelectedCatId && db.masterCategories.length > 0) {
-    adminSelectedCatId = db.masterCategories[0].id;
-    tabWrap.innerHTML = db.masterCategories.map(c =>
-      `<button class="btn btn-sm ${adminSelectedCatId===c.id?'btn-primary':'btn-secondary'}"
-        onclick="selectChannelCat('${c.id}','${teamId}')">${esc(c.name)}</button>`
-    ).join('');
-  }
-
-  if (adminSelectedCatId) await renderChannelList(teamId, adminSelectedCatId);
-}
-
-async function selectChannelCat(catId, teamId) {
-  adminSelectedCatId = catId;
-  // 탭 버튼 활성화 상태 갱신
+// 카테고리 탭 + 카테고리 바 공통 렌더 헬퍼
+function refreshCatTabs(teamId) {
   const tabWrap = document.getElementById('channelCatTabs');
   if (tabWrap) {
     tabWrap.innerHTML = db.masterCategories.map(c =>
@@ -2047,6 +2050,27 @@ async function selectChannelCat(catId, teamId) {
         onclick="selectChannelCat('${c.id}','${teamId}')">${esc(c.name)}</button>`
     ).join('');
   }
+  // 선택된 카테고리 이름 + 수정/삭제 바
+  const bar     = document.getElementById('channelCatBar');
+  const barName = document.getElementById('channelCatBarName');
+  if (bar && barName) {
+    const cat = db.masterCategories.find(c => c.id === adminSelectedCatId);
+    if (cat) { bar.style.display = 'flex'; barName.textContent = cat.name; }
+    else      { bar.style.display = 'none'; }
+  }
+}
+
+async function renderChannelAdmin(teamId) {
+  if (!adminSelectedCatId && db.masterCategories.length > 0) {
+    adminSelectedCatId = db.masterCategories[0].id;
+  }
+  refreshCatTabs(teamId);
+  if (adminSelectedCatId) await renderChannelList(teamId, adminSelectedCatId);
+}
+
+async function selectChannelCat(catId, teamId) {
+  adminSelectedCatId = catId;
+  refreshCatTabs(teamId);
   await renderChannelList(teamId, catId);
 }
 
@@ -2080,7 +2104,6 @@ async function renderChannelList(teamId, catId) {
       return '<span style="color:var(--text-muted);font-size:11px">기본값</span>';
     if (en === false)
       return '<span style="color:#ef4444;font-size:11px">OFF 고정</span>';
-    // en === true
     if (ruleKey && ov[ruleKey])
       return `<span style="color:var(--accent);font-size:11px">별도: ${esc(crMap[ov[ruleKey]]||'?')}</span>`;
     if (priceKey && ov[priceKey] != null)
@@ -2117,11 +2140,141 @@ async function renderChannelList(teamId, catId) {
             onclick="openChannelOverrideModal('${c.id}','${esc(c.name)}','${teamId}')">
             ${ov?'예외 수정':'예외 설정'}
           </button>
+          <button class="btn btn-sm"
+            style="color:var(--text-muted);border:1px solid var(--border);background:transparent"
+            onclick="deleteChannel('${c.id}','${esc(c.name)}','${teamId}','${catId}')">삭제</button>
         </td>
       </tr>`;
     }).join('')}
     </tbody>
   </table>`;
+}
+
+// ── 카테고리 추가/수정/삭제 ──────────────────────────────────────
+
+function openAddCategory() {
+  document.getElementById('categoryModalTitle').textContent = '카테고리 추가';
+  document.getElementById('editCategoryModalId').value = '';
+  document.getElementById('categoryModalName').value = '';
+  openModal('categoryModal');
+  setTimeout(() => document.getElementById('categoryModalName').focus(), 100);
+}
+
+function openEditCategory() {
+  const cat = db.masterCategories.find(c => c.id === adminSelectedCatId);
+  if (!cat) { showToast('카테고리를 먼저 선택해 주세요', 'error'); return; }
+  document.getElementById('categoryModalTitle').textContent = '카테고리 수정';
+  document.getElementById('editCategoryModalId').value = cat.id;
+  document.getElementById('categoryModalName').value = cat.name;
+  openModal('categoryModal');
+  setTimeout(() => document.getElementById('categoryModalName').focus(), 100);
+}
+
+async function saveCategory() {
+  const name   = document.getElementById('categoryModalName').value.trim();
+  const editId = document.getElementById('editCategoryModalId').value;
+  if (!name) { showToast('카테고리명을 입력해 주세요', 'error'); return; }
+
+  // 중복 확인 (수정 시 자기 자신 제외)
+  if (db.masterCategories.find(c => c.name === name && c.id !== editId)) {
+    showToast(`'${name}' 카테고리가 이미 존재합니다`, 'error'); return;
+  }
+
+  setBusy(true);
+  try {
+    if (editId) {
+      await SB.patch('categories', `?id=eq.${editId}`, { name });
+      const cat = db.masterCategories.find(c => c.id === editId);
+      if (cat) cat.name = name;
+      showToast('카테고리가 수정되었습니다', 'success');
+    } else {
+      const maxOrder = db.masterCategories.reduce((m,c) => Math.max(m, c.sort_order||0), 0);
+      const res = await SB.post('categories', { name, sort_order: maxOrder + 1 });
+      const ins = Array.isArray(res) ? res[0] : res;
+      db.masterCategories.push({ id: ins.id, name, sort_order: maxOrder + 1 });
+      adminSelectedCatId = ins.id;
+      showToast('카테고리가 추가되었습니다', 'success');
+    }
+    closeModal('categoryModal');
+    if (adminSelectedTeamId) refreshCatTabs(adminSelectedTeamId);
+    updateCatList();  // SM 드롭다운 datalist 갱신
+  } catch(e) { showToast('저장 실패: ' + e.message, 'error'); }
+  setBusy(false);
+}
+
+async function deleteCategory() {
+  const cat = db.masterCategories.find(c => c.id === adminSelectedCatId);
+  if (!cat) { showToast('카테고리를 먼저 선택해 주세요', 'error'); return; }
+
+  setBusy(true);
+  try {
+    // 전체 팀 기준 연결 데이터 확인 (categories는 공통 마스터)
+    const [chRes, ruleRes] = await Promise.all([
+      SB.get('team_channels',       `?category_id=eq.${cat.id}&select=id&limit=1`),
+      SB.get('team_category_rules', `?category_id=eq.${cat.id}&select=id&limit=1`),
+    ]);
+    setBusy(false);
+
+    if (chRes.length || ruleRes.length) {
+      const used = [chRes.length && '채널', ruleRes.length && '인센티브 설정'].filter(Boolean).join(', ');
+      showToast(`'${cat.name}' 카테고리는 현재 ${used}에서 사용 중입니다.\n연결된 항목을 먼저 정리한 후 삭제해주세요.`, 'error');
+      return;
+    }
+
+    openConfirm(`'${cat.name}' 카테고리를 삭제하시겠습니까?`, async () => {
+      setBusy(true);
+      try {
+        await SB.del('categories', `?id=eq.${cat.id}`);
+        db.masterCategories = db.masterCategories.filter(c => c.id !== cat.id);
+        if (adminSelectedCatId === cat.id) {
+          adminSelectedCatId = db.masterCategories.length > 0 ? db.masterCategories[0].id : null;
+        }
+        showToast('카테고리가 삭제되었습니다', 'success');
+        if (adminSelectedTeamId) {
+          refreshCatTabs(adminSelectedTeamId);
+          if (adminSelectedCatId) await renderChannelList(adminSelectedTeamId, adminSelectedCatId);
+          else document.getElementById('channelListPanel').innerHTML = '';
+        }
+        updateCatList();
+      } catch(e) { showToast('삭제 실패: ' + e.message, 'error'); }
+      setBusy(false);
+    });
+  } catch(e) {
+    setBusy(false);
+    showToast('확인 중 오류: ' + e.message, 'error');
+  }
+}
+
+// ── 채널 삭제 ─────────────────────────────────────────────────────
+async function deleteChannel(channelId, channelName, teamId, catId) {
+  setBusy(true);
+  try {
+    // 해당 channel_id를 사용하는 활동 건수 조회
+    const acts = await SB.get('sm_activities', `?channel_id=eq.${channelId}&select=id`);
+    const actCount = acts.length;
+    setBusy(false);
+
+    const msg = actCount === 0
+      ? `'${channelName}' 채널을 삭제하시겠습니까?`
+      : `'${channelName}' 채널은 기존 활동 ${actCount}건에서 사용 중입니다.\n삭제하면 기존 활동의 채널 연결이 해제됩니다.\n그래도 삭제하시겠습니까?`;
+
+    openConfirm(msg, async () => {
+      setBusy(true);
+      try {
+        // 반드시 id AND team_id 조건 — 다른 팀 동명 채널 보호
+        await SB.del('team_channels', `?id=eq.${channelId}&team_id=eq.${teamId}`);
+        // team_channel_overrides: ON DELETE CASCADE로 자동 삭제
+        // sm_activities.channel_id: ON DELETE SET NULL으로 자동 해제
+        showToast(`'${channelName}' 채널이 삭제되었습니다`, 'success');
+        await renderChannelList(teamId, catId);
+        if (currentUser && currentUser.teamId === teamId) await loadTeamData(teamId);
+      } catch(e) { showToast('삭제 실패: ' + e.message, 'error'); }
+      setBusy(false);
+    });
+  } catch(e) {
+    setBusy(false);
+    showToast('확인 중 오류: ' + e.message, 'error');
+  }
 }
 
 function openAddChannel() {
