@@ -1346,7 +1346,8 @@ async function loadSMData(teamId) {
         id: a.id, date: a.date||'', category: a.category||'',
         title: a.title||'', link: a.link||'', comments: a.comments||'',
         view_count: a.view_count||0,
-        channel_id: a.channel_id||null
+        channel_id: a.channel_id||null,
+        _pending: false  // DB에서 로드된 행 — INSERT 불필요
       });
     });
 
@@ -1541,16 +1542,30 @@ function renderGrid() {
 }
 
 function selSup(id) {
-  // 다른 서포터로 이동 전 현재 서포터의 미저장 행 즉시 플러시
-  if (currentSupId && currentSupId !== id && Object.keys(_saveTimers).length > 0) {
+  // 다른 서포터로 이동 전 현재 서포터의 미저장 행 처리
+  if (currentSupId && currentSupId !== id) {
     var oldSup = getSup(currentUser.smId, currentMonth, currentSupId);
     if (oldSup && oldSup.rows) {
+      // 타이머 대기 중인 행: 내용 있으면 즉시 저장, 빈 _pending 행은 로컬 제거
       oldSup.rows.forEach(function(row) {
         if (_saveTimers[row.id]) {
           clearTimeout(_saveTimers[row.id]);
           delete _saveTimers[row.id];
-          saveActivity(row, oldSup.id);
+          saveActivity(row, oldSup.id); // 내부에서 빈 _pending 행 자동 건너뜀
         }
+      });
+      // 빈 _pending 행(타이머도 없는 것) 로컬에서 제거
+      oldSup.rows = oldSup.rows.filter(function(row) {
+        var hasContent = (row.title||'').trim() !== ''
+          || (row.link||'').trim() !== ''
+          || (row.comments !== '' && row.comments !== null && row.comments !== undefined && String(row.comments).trim() !== '')
+          || (parseInt(row.view_count) > 0)
+          || (row.date||'').trim() !== '';
+        if (row._pending && !hasContent) {
+          console.log('[selSup] 빈 임시행 제거:', row.id);
+          return false;
+        }
+        return true;
       });
     }
   }
@@ -1731,37 +1746,78 @@ function upRow(i, field, val) {
 }
 
 async function saveActivity(row, supporterId) {
-  // 채널 미선택 경고 (저장 차단 아님 — 경고만 표시하고 저장은 진행)
-  const hasContent = (row.title||'').trim() || (row.link||'').trim()
-    || (row.comments !== '' && row.comments !== null && row.comments !== undefined)
-    || (parseInt(row.view_count) > 0);
+  // ── 빈 행 판정 ──────────────────────────────────────────────
+  const hasContent = (row.title||'').trim() !== ''
+    || (row.link||'').trim() !== ''
+    || (row.comments !== '' && row.comments !== null && row.comments !== undefined && String(row.comments).trim() !== '')
+    || (parseInt(row.view_count) > 0)
+    || (row.date||'').trim() !== '';
+
+  // _pending(미저장) 행이고 내용이 없으면 저장 건너뜀 (빈 행 DB 보관 방지)
+  if (row._pending && !hasContent) {
+    console.log('[saveActivity] 빈 임시행 — 저장 건너뜀', row.id);
+    return;
+  }
+
+  // 채널 미선택 경고 (저장 차단 아님)
   if (hasContent && !row.channel_id) {
-    // 경고만 — 저장은 계속 진행 (channel_id=null 로 저장)
     console.warn('[saveActivity] 채널 미선택 상태로 저장 (channel_id=null)', row.id);
   }
+
+  // INSERT 중복 방지: 이미 INSERT 진행 중이면 대기
+  if (row._inserting) {
+    console.log('[saveActivity] INSERT 진행 중 — 대기 후 PATCH로 처리', row.id);
+    // INSERT 완료 후 PATCH가 필요하면 플래그로 표시
+    row._patchAfterInsert = true;
+    return;
+  }
+
+  const payload = {
+    date: row.date||'', category: row.category||'',
+    title: row.title||'', link: row.link||'',
+    comments: (row.comments !== '' && row.comments !== null && row.comments !== undefined && String(row.comments).trim() !== '')
+      ? parseFloat(row.comments)||0 : null,
+    view_count: parseInt(row.view_count)||0,
+    channel_id: row.channel_id || null
+  };
+
   try {
-    await SB.patch('sm_activities', `?id=eq.${row.id}`, {
-      date: row.date||'', category: row.category||'',
-      title: row.title||'', link: row.link||'',
-      comments: row.comments!==''&&row.comments!==null&&row.comments!==undefined ? parseFloat(row.comments)||0 : null,
-      view_count: parseInt(row.view_count)||0,
-      channel_id: row.channel_id || null
-    });
-    row._saveFailed = false;
+    if (row._pending) {
+      // ── 최초 INSERT ──────────────────────────────────────────
+      row._inserting = true;
+      console.log('[saveActivity] INSERT (최초 저장):', row.id);
+      await SB.post('sm_activities', {
+        id: row.id, supporter_id: supporterId, ...payload
+      });
+      row._pending = false;
+      row._inserting = false;
+      row._saveFailed = false;
+      console.log('[saveActivity] INSERT 완료:', row.id);
+      // INSERT 도중 변경이 있었으면 바로 PATCH
+      if (row._patchAfterInsert) {
+        row._patchAfterInsert = false;
+        await SB.patch('sm_activities', `?id=eq.${row.id}`, payload);
+        console.log('[saveActivity] INSERT 후 PATCH 완료:', row.id);
+      }
+    } else {
+      // ── PATCH (기존 저장 행 수정) ────────────────────────────
+      await SB.patch('sm_activities', `?id=eq.${row.id}`, payload);
+      row._saveFailed = false;
+    }
   } catch(e) {
+    row._inserting = false;
     row._saveFailed = true;
     console.error('[saveActivity] 저장 실패:', e.message, row);
     showToast('저장 실패 — 재시도 중...', 'error');
     // 3초 후 자동 재시도 1회
     setTimeout(async () => {
       try {
-        await SB.patch('sm_activities', `?id=eq.${row.id}`, {
-          date: row.date||'', category: row.category||'',
-          title: row.title||'', link: row.link||'',
-          comments: row.comments!==''&&row.comments!==null&&row.comments!==undefined ? parseFloat(row.comments)||0 : null,
-          view_count: parseInt(row.view_count)||0,
-          channel_id: row.channel_id || null
-        });
+        if (row._pending) {
+          await SB.post('sm_activities', { id: row.id, supporter_id: supporterId, ...payload });
+          row._pending = false;
+        } else {
+          await SB.patch('sm_activities', `?id=eq.${row.id}`, payload);
+        }
         row._saveFailed = false;
         showToast('재시도 저장 완료 ✓', 'success');
       } catch(e2) {
@@ -1779,45 +1835,37 @@ function showAutosave() {
   showAutosave._t = setTimeout(() => badge.classList.remove('show'), 1500);
 }
 
-async function addRow() {
+function addRow() {
+  // DB INSERT는 하지 않음 — 내용 입력 시 saveActivity()에서 최초 INSERT
   const sup = getSup(currentUser.smId, currentMonth, currentSupId);
   if (!sup) return;
-  setBusy(true);
-  try {
-    const newId = uid(); // 클라이언트에서 ID 생성 (sm_activities.id는 NOT NULL, 기본값 없음)
-    console.log('[addRow] uid 생성:', newId);
-    const res = await SB.post('sm_activities', {
-      id: newId, supporter_id: sup.id,
-      date:'', category:'', title:'', link:'', comments:null, view_count:0, channel_id:null
-    });
-
-    // 반환값에서 실제 DB id 추출 — 없으면 uid 사용 (INSERT는 성공했으므로 로컬에 추가)
-    const inserted = Array.isArray(res) ? res[0] : res;
-    const rowId = (inserted && inserted.id) ? inserted.id : newId;
-    if (!inserted || !inserted.id) {
-      console.warn('[addRow] INSERT 응답에 id 없음 — uid 사용:', newId);
-    }
-    console.log('[addRow] INSERT 성공, 사용 id:', rowId);
-
-    sup.rows.push({ id: rowId, date:'', category:'', title:'', link:'', comments:'', view_count:0, channel_id:null });
-    renderActTable(sup); updateSummary(sup); renderGrid();
-    const body = document.getElementById('actBody');
-    if (body.lastElementChild) body.lastElementChild.scrollIntoView({behavior:'smooth',block:'nearest'});
-  } catch(e) {
-    console.error('[addRow] INSERT 실패:', e.message, e);
-    showToast('행 추가 실패: '+e.message, 'error');
-    // INSERT 실패 시 로컬에 행을 추가하지 않음
-  }
-  setBusy(false);
+  const newId = uid();
+  console.log('[addRow] 로컬 임시행 추가, id:', newId);
+  sup.rows.push({
+    id: newId, date:'', category:'', title:'', link:'',
+    comments:'', view_count:0, channel_id:null,
+    _pending: true   // DB 미저장 상태 플래그
+  });
+  renderActTable(sup); updateSummary(sup); renderGrid();
+  const body = document.getElementById('actBody');
+  if (body && body.lastElementChild) body.lastElementChild.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 
 async function delRow(i) {
   const sup = getSup(currentUser.smId, currentMonth, currentSupId);
   if (!sup) return;
-  const rowId = sup.rows[i]?.id;
+  const row = sup.rows[i];
+  if (!row) return;
   setBusy(true);
   try {
-    if (rowId) await SB.del('sm_activities', `?id=eq.${rowId}`);
+    if (row._pending) {
+      // DB에 저장되지 않은 임시행 — 로컬에서만 제거
+      console.log('[delRow] 미저장 임시행 로컬 제거:', row.id);
+      clearTimeout(_saveTimers[row.id]);
+      delete _saveTimers[row.id];
+    } else {
+      await SB.del('sm_activities', `?id=eq.${row.id}`);
+    }
     sup.rows.splice(i,1);
     renderActTable(sup); updateSummary(sup); renderGrid();
   } catch(e) { showToast('삭제 실패: '+e.message, 'error'); }
@@ -1826,6 +1874,7 @@ async function delRow(i) {
 
 function saveData() {
   // 미처리된 디바운스 타이머를 즉시 플러시하여 강제 저장
+  // 빈 임시행은 saveActivity 내부에서 자동으로 건너뜀
   flushSaveTimers().then(() => {
     showToast('저장 완료 ✓', 'success');
   }).catch(e => {
@@ -1948,7 +1997,7 @@ async function loadAllTeamsData() {
       const actMap = {};
       acts.forEach(a => {
         if (!actMap[a.supporter_id]) actMap[a.supporter_id] = [];
-        actMap[a.supporter_id].push({ id:a.id, date:a.date||'', category:a.category||'', title:a.title||'', link:a.link||'', comments:a.comments||'' });
+        actMap[a.supporter_id].push({ id:a.id, date:a.date||'', category:a.category||'', title:a.title||'', link:a.link||'', comments:a.comments||'', _pending:false });
       });
       db.supporters = {};
       sups.forEach(s => {
@@ -3829,12 +3878,14 @@ async function flushSaveTimers() {
   }
 
   // 3) 현재 보고 있는 서포터의 모든 행도 저장 (pending 여부 무관)
+  // 빈 _pending 행은 saveActivity 내부에서 자동으로 건너뜀
   if (currentSupId && currentUser.smId) {
     var sup = getSup(currentUser.smId, currentMonth, currentSupId);
     if (sup && sup.rows) {
+      var processedIds = new Set(pendingRowIds);
       sup.rows.forEach(function(row) {
         // 위에서 이미 처리된 행은 중복 저장 방지
-        if (!promises.some(function(p) { return p && p._rowId === row.id; })) {
+        if (!processedIds.has(row.id)) {
           promises.push(saveActivity(row, sup.id));
         }
       });
@@ -3914,7 +3965,6 @@ document.querySelectorAll('.modal-overlay').forEach(o => {
 // visibilitychange: 탭 전환, 앱 최소화 시 즉시 저장
 document.addEventListener('visibilitychange', function() {
   if (document.visibilityState === 'hidden' && currentUser) {
-    // 타이머 대기 중인 행 즉시 저장 (async 불가 → 동기 방식으로 타이머 취소 후 저장)
     Object.keys(_saveTimers).forEach(function(rowId) {
       clearTimeout(_saveTimers[rowId]);
       delete _saveTimers[rowId];
@@ -3922,6 +3972,7 @@ document.addEventListener('visibilitychange', function() {
     if (currentUser.smId && currentSupId) {
       var sup = getSup(currentUser.smId, currentMonth, currentSupId);
       if (sup && sup.rows) {
+        // 빈 _pending 행은 저장하지 않음
         sup.rows.forEach(function(row) { saveActivity(row, sup.id); });
       }
     }
@@ -3941,7 +3992,15 @@ window.addEventListener('beforeunload', function(e) {
       var sup = getSup(currentUser.smId, currentMonth, currentSupId);
       if (sup && sup.rows) {
         // sendBeacon: 페이지 종료 직전 비동기 저장 (fetch보다 신뢰도 높음)
+        // 빈 _pending 행(내용 없음)은 sendBeacon에서도 제외
         sup.rows.forEach(function(row) {
+          var hasContent = (row.title||'').trim() !== ''
+            || (row.link||'').trim() !== ''
+            || (row.comments !== '' && row.comments !== null && row.comments !== undefined && String(row.comments).trim() !== '')
+            || (parseInt(row.view_count) > 0)
+            || (row.date||'').trim() !== '';
+          if (row._pending && !hasContent) return; // 빈 임시행 제외
+
           var payload = {
             date: row.date||'', category: row.category||'',
             title: row.title||'', link: row.link||'',
@@ -3949,11 +4008,22 @@ window.addEventListener('beforeunload', function(e) {
             view_count: parseInt(row.view_count)||0,
             channel_id: row.channel_id || null
           };
-          var blob = new Blob([JSON.stringify(payload)], {type:'application/json'});
-          navigator.sendBeacon(
-            SB.url('sm_activities', '?id=eq.' + row.id + '&apikey=' + SUPABASE_KEY),
-            blob
-          );
+          if (row._pending) {
+            // 미저장 행: INSERT payload에 id, supporter_id 추가
+            payload.id = row.id;
+            payload.supporter_id = sup.id;
+            var blob = new Blob([JSON.stringify(payload)], {type:'application/json'});
+            navigator.sendBeacon(
+              SB.url('sm_activities', '?apikey=' + SUPABASE_KEY),
+              blob
+            );
+          } else {
+            var blob = new Blob([JSON.stringify(payload)], {type:'application/json'});
+            navigator.sendBeacon(
+              SB.url('sm_activities', '?id=eq.' + row.id + '&apikey=' + SUPABASE_KEY),
+              blob
+            );
+          }
         });
       }
     }
